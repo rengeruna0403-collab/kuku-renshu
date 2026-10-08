@@ -216,6 +216,21 @@
 
     <div id="dev-tools" hidden>
     <section class="card">
+      <h2>🛠 開発用：音の切り分け（「ピコン」音の調査）</h2>
+      <p class="note">「ピコン」が、アプリの効果音なのか、Android 等が音声認識の開始・終了で鳴らす音なのかを確かめます。テスト中は話さず、音が鳴ったときに下の記録と時刻を見比べてください。</p>
+      <div class="row">
+        <button class="soft-btn" id="btn-beep-off" type="button">① マイクを止めて30秒（アプリの音だけ）</button>
+        <button class="soft-btn" id="btn-beep-on" type="button">② マイクだけ開いて30秒（話さないで）</button>
+        <button class="tiny" id="btn-beep-stop" type="button">テストをやめる</button>
+      </div>
+      <div class="test-out" id="beep-status"></div>
+      <div class="raw-log" id="beep-live"></div>
+      <h3 class="day">練習中のマイクの開始・終了のまとめ（生ログから）</h3>
+      <div class="row"><button class="tiny" id="btn-beep-summary" type="button">まとめを更新</button></div>
+      <div class="table-wrap" id="beep-summary"></div>
+    </section>
+
+    <section class="card">
       <h2>🛠 開発用：テンポ計測</h2>
       <p class="note">子ども画面には出ません。学習記録とは別で、このタブを閉じると消えます。</p>
       <div class="row">

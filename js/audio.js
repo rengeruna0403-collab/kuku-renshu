@@ -1,4 +1,7 @@
 // 効果音（Web Audio API で生成。外部素材なし）・読み上げ・音声認識
+// 音の切り分け用カウンター（開発用ツールの「音の切り分け」で使う。文字や音声は持たない）
+const stats = { sfx: 0, tts: 0, startCall: 0, start: 0, end: 0, endNoResult: 0, errors: {}, speechstart: 0, speechend: 0, nomatch: 0, result: 0 };
+
 const Sound = (() => {
   let ctx = null;
   function ensure() {
@@ -32,12 +35,16 @@ const Sound = (() => {
     // ピンポン♪：明るい2音
     pinpon() {
       if (!Store.settings.soundEnabled) return;
+      RawLog.add('sfx', { name: 'pinpon' });
+      stats.sfx++;
       tone(1318.5, 0, 0.32, 0.22, 'sine');      // E6
       tone(1046.5, 0.16, 0.5, 0.2, 'sine');     // C6
     },
     // プッ♪：短く低刺激
     pu() {
       if (!Store.settings.soundEnabled) return;
+      RawLog.add('sfx', { name: 'pu' });
+      stats.sfx++;
       tone(392, 0, 0.11, 0.09, 'sine');          // G4
     },
   };
@@ -85,6 +92,7 @@ const Voice = (() => {
       let timer = null;
       const finish = (how) => { if (done) return; done = true; clearTimeout(timer); RawLog.add('ttsEnd', { text, how }); resolve(how); };
       RawLog.add('ttsRequest', { text });
+      stats.tts++;
       // 1.5秒たっても読み上げが始まらなければ、音が出ていないとみなして先へ進む
       timer = setTimeout(() => finish('nostart'), 1500);
       const u = new SpeechSynthesisUtterance(text);
@@ -137,6 +145,8 @@ const Mic = (() => {
   // 認識の設定（開発用の比較で切り替える。通常は continuous + interim）
   let cfg = { continuous: true, interimResults: true };
   let recNo = 0;         // 作った認識インスタンスの通し番号（resultIndex はインスタンスごとに 0 から）
+  let gotResultThisRun = false;   // この start〜end のあいだに result が来たか（来ずに終わった＝無言・雑音で終了）
+  let lastErrorThisRun = null;
 
   function create() {
     const r = new SR();
@@ -151,9 +161,13 @@ const Mic = (() => {
       RawLog.add('caps', { maxAlternativesSet: r.maxAlternatives, continuous: r.continuous, interimResults: r.interimResults, hasPhrases: 'phrases' in r, hasProcessLocally: 'processLocally' in r, ua: navigator.userAgent });
     }
     ['audiostart', 'soundstart', 'speechend', 'soundend', 'audioend'].forEach((ev) => {
-      r['on' + ev] = () => { if (r === rec) RawLog.add(ev, { rec: r._no }); };
+      r['on' + ev] = () => { if (r !== rec) return; if (ev === 'speechend') stats.speechend++; RawLog.add(ev, { rec: r._no }); };
     });
+    r.onnomatch = () => { if (r === rec) { stats.nomatch++; RawLog.add('nomatch', { rec: r._no }); } };
     r.onstart = () => {
+      stats.start++;
+      gotResultThisRun = false;
+      lastErrorThisRun = null;
       RawLog.add('start', { rec: r._no });
       if (r !== rec) return;
       starting = false;
@@ -164,7 +178,7 @@ const Mic = (() => {
       liveWaiters = [];
       if (h.onLive) h.onLive();
     };
-    r.onspeechstart = () => { if (r !== rec) return; RawLog.add('speechstart', { rec: r._no }); if (h.onSpeechStart) h.onSpeechStart(); };
+    r.onspeechstart = () => { if (r !== rec) return; stats.speechstart++; RawLog.add('speechstart', { rec: r._no }); if (h.onSpeechStart) h.onSpeechStart(); };
     r.onresult = (e) => {
       if (r !== rec) return;
       const snap = [];
@@ -178,6 +192,8 @@ const Mic = (() => {
         // firstSeen：この区間（result の番号）が最初に届いた時刻（performance.now）
         snap.push({ i, isFinal: res.isFinal, alts, firstSeen: Math.round(segFirst[i]) });
       }
+      stats.result++;
+      gotResultThisRun = true;
       RawLog.add('result', { rec: r._no, resultIndex: e.resultIndex, total: e.results.length, results: snap });
       for (let i = e.resultIndex; i < e.results.length; i++) {
         const res = e.results[i];
@@ -191,6 +207,8 @@ const Mic = (() => {
     };
     r.onerror = (e) => {
       if (r !== rec) return;
+      stats.errors[e.error] = (stats.errors[e.error] || 0) + 1;
+      lastErrorThisRun = e.error;
       RawLog.add('error', { rec: r._no, error: e.error, message: e.message || '' });
       if (e.error === 'not-allowed' || e.error === 'service-not-allowed' || e.error === 'audio-capture' || e.error === 'network') {
         want = false;
@@ -201,7 +219,10 @@ const Mic = (() => {
     };
     r.onend = () => {
       if (r !== rec) return;
-      RawLog.add('end', { rec: r._no, autoRestart: want });
+      stats.end++;
+      if (!gotResultThisRun && !lastErrorThisRun) stats.endNoResult++;
+      // 終わった理由：result あり／エラー（no-speech 等）／何も来ずに終了
+      RawLog.add('end', { rec: r._no, autoRestart: want, afterResult: gotResultThisRun, afterError: lastErrorThisRun });
       live = false;
       starting = false;
       if (endWaiter) { const f = endWaiter; endWaiter = null; f(); return; }
@@ -218,6 +239,7 @@ const Mic = (() => {
     if (!rec) rec = create();
     starting = true;
     lastStartCall = performance.now();
+    stats.startCall++;
     RawLog.add('startCall', { rec: rec._no });
     try {
       rec.start();

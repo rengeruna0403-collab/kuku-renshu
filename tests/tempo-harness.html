@@ -25,6 +25,8 @@ class FakeSR {
       if (!this._running) return;
       this._live = true; FakeSR.live = this;
       this.onstart && this.onstart();
+      // 無音で終了する端末のまね：__sim.silenceEndMs 後に、何も話していなければ終わる（__sim.silenceError='no-speech' ならエラー付き）
+      if (__sim.silenceEndMs) { const me = this; me._spoke = false; setTimeout(() => { if (FakeSR.live === me && !me._spoke) { if (__sim.silenceError) me.onerror && me.onerror({ error: __sim.silenceError }); me._end(); } }, __sim.silenceEndMs); }
     }, __sim.startLatency);
   }
   _end(err) {
@@ -55,6 +57,7 @@ window.SpeechRecognition = FakeSR;
 __sim.say = (text, { interimAfter = 300, finalAfter = 650, conf = 0.9, tag = 'child' } = {}) => {
   const r = FakeSR.live;
   if (!r) { __sim.lost.push({ text, tag, at: now() }); return false; }
+  r._spoke = true;
   const idx = r._results.length;
   r._results.push(undefined);
   r._pending = r._pending || {};

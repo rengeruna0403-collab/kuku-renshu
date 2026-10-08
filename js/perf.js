@@ -57,7 +57,12 @@ const RawLog = (() => {
     get context() { return ctx; },
     add(type, data) {
       if (!Store.settings.devTools) return;
-      list.push({ t: Math.round(performance.now()), clock: new Date().toISOString().slice(11, 23), ctx, type, ...(data || {}) });
+      const scr = document.querySelector('.screen.active');
+      list.push({
+        t: Math.round(performance.now()), clock: new Date().toISOString().slice(11, 23), ctx, type,
+        screen: scr ? scr.id.replace('screen-', '') : '', phase: typeof P !== 'undefined' ? P.phase : null,
+        ...(data || {}),
+      });
       if (list.length > MAX) list.splice(0, list.length - MAX);
       save();
     },

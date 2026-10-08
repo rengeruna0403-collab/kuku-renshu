@@ -296,6 +296,109 @@ const Parent = (() => {
       }).join('') + '</tbody></table>';
   }
 
+  // ---------- 開発用：音の切り分け ----------
+  const BEEP_TEST_SEC = 30;
+  let beepTest = null;   // { kind, t0, timer, before, events }
+
+  const statsCopy = () => JSON.parse(JSON.stringify(stats));
+  const diffStats = (a, b) => {
+    const d = {};
+    Object.keys(b).forEach((k) => {
+      if (k === 'errors') {
+        d.errors = {};
+        Object.keys(b.errors).forEach((e) => { const v = b.errors[e] - (a.errors[e] || 0); if (v) d.errors[e] = v; });
+      } else d[k] = b[k] - (a[k] || 0);
+    });
+    return d;
+  };
+
+  function beepLiveAdd(label) {
+    if (!beepTest) return;
+    const sec = ((performance.now() - beepTest.t0) / 1000).toFixed(1);
+    beepTest.events.push(`+${sec}s ${label}`);
+    $('beep-live').innerHTML = `<ul class="log">${beepTest.events.slice().reverse().map((x) => `<li>${esc(x)}</li>`).join('')}</ul>`;
+  }
+
+  // テスト中だけ使うマイクの処理（判定はしない。開始・終了を数えて表示するだけ）
+  const BEEP_HANDLERS = {
+    onLive: () => beepLiveAdd('🎤 音声認識 開始（onstart）← この直前・直後に「ピコン」が鳴れば、開始の通知音'),
+    onFinal: (alts) => beepLiveAdd(`認識結果（確定）「${alts[0] ? alts[0].transcript : ''}」`),
+    onInterim: () => {},
+    onSpeechStart: () => beepLiveAdd('speechstart（声や音を検知）'),
+    onNoSpeech: () => beepLiveAdd('no-speech（無音で終了）'),
+    onEnded: () => beepLiveAdd('⏹ 音声認識 終了（onend）→ すぐ開き直す'),
+    onUnavailable: (code) => beepLiveAdd(`マイクが使えない：${code}`),
+  };
+
+  function startBeepTest(kind) {
+    stopBeepTest(false);
+    if (typeof stopPlay === 'function') stopPlay();
+    Mic.stop();
+    beepTest = { kind, t0: performance.now(), before: statsCopy(), events: [] };
+    $('beep-live').innerHTML = '';
+    if (kind === 'on') {
+      const m = MIC_MODES[micMode()];
+      Mic.configure({ continuous: m.continuous, interimResults: m.interimResults });
+      Mic.setHandlers(BEEP_HANDLERS);
+      RawLog.setContext('音の切り分け②');
+      Mic.start();
+      beepLiveAdd(`テスト開始：マイクを開きました（方式 ${micMode()}・continuous=${m.continuous}）。話さずに待ってください`);
+    } else {
+      RawLog.setContext('音の切り分け①');
+      beepLiveAdd('テスト開始：マイクは止めています。この30秒に「ピコン」が鳴れば、音声認識以外の音です');
+    }
+    const tick = () => {
+      if (!beepTest) return;
+      const left = Math.max(0, BEEP_TEST_SEC - Math.round((performance.now() - beepTest.t0) / 1000));
+      $('beep-status').textContent = `${kind === 'on' ? '② マイクだけ開いて' : '① マイクを止めて'} テスト中…のこり ${left}秒`;
+      if (left <= 0) stopBeepTest(true); else beepTest.timer = setTimeout(tick, 500);
+    };
+    tick();
+  }
+
+  function stopBeepTest(showResult) {
+    if (!beepTest) return;
+    clearTimeout(beepTest.timer);
+    const t = beepTest;
+    beepTest = null;
+    Mic.stop();
+    Mic.setHandlers(PLAY_MIC_HANDLERS);
+    if (!showResult) { $('beep-status').textContent = 'テストをやめました'; return; }
+    const d = diffStats(t.before, statsCopy());
+    const sec = ((performance.now() - t.t0) / 1000).toFixed(0);
+    $('beep-status').innerHTML = `<b>${t.kind === 'on' ? '② マイクだけ開いて' : '① マイクを止めて'}（${sec}秒）の結果</b><br>
+      アプリの効果音 ${d.sfx}回・読み上げ ${d.tts}回<br>
+      音声認識：start() 呼び出し ${d.startCall}回・開始 ${d.start}回・終了 ${d.end}回（うち結果もエラーもなく終了 ${d.endNoResult}回）・speechstart ${d.speechstart}回・nomatch ${d.nomatch}回${Object.keys(d.errors).length ? `・エラー ${esc(JSON.stringify(d.errors))}` : ''}<br>
+      ${t.kind === 'off'
+        ? (d.sfx || d.tts || d.start ? '※ マイクを止めていたのにアプリの音・認識が動いています（要確認）' : 'アプリ側は音を出していません。この間に「ピコン」が鳴っていなければ、ピコンは音声認識に関係する音です。')
+        : `聞こえた「ピコン」の回数が「開始 ${d.start}回」（＋終了 ${d.end}回）と合えば、端末が音声認識の開始・終了で鳴らしている通知音です。`}`;
+    renderBeepSummary();
+  }
+
+  // 生ログから：練習中に音声認識がどのくらい開始・終了をくり返したか
+  function renderBeepSummary() {
+    const all = RawLog.list;
+    const starts = all.filter((x) => x.type === 'start');
+    if (!starts.length) { $('beep-summary').innerHTML = '<p class="note">まだ記録がありません（開発用ツールを ON にしてから練習すると記録されます）</p>'; return; }
+    const ends = all.filter((x) => x.type === 'end');
+    const gaps = starts.slice(1).map((x, i) => x.t - starts[i].t);
+    const sorted = gaps.slice().sort((a, b) => a - b);
+    const med = sorted.length ? sorted[Math.floor(sorted.length / 2)] : null;
+    const reason = (e) => (e.afterResult ? '認識結果のあと' : e.afterError ? `エラー（${e.afterError}）` : '結果もエラーもなく終了');
+    const byReason = {};
+    ends.forEach((e) => { const k = reason(e); byReason[k] = (byReason[k] || 0) + 1; });
+    const byPlace = {};
+    starts.forEach((s) => { const k = `${s.screen || '?'}／${s.phase || '-'}`; byPlace[k] = (byPlace[k] || 0) + 1; });
+    const sfx = all.filter((x) => x.type === 'sfx').length;
+    const quick = gaps.filter((g) => g < 1500).length;
+    const span = ((starts[starts.length - 1].t - starts[0].t) / 1000).toFixed(0);
+    $('beep-summary').innerHTML = `<p class="note">音声認識の開始 ${starts.length}回（約${span}秒のあいだ）・終了 ${ends.length}回・アプリの効果音 ${sfx}回<br>
+      開始と開始の間隔：最短 ${sorted.length ? sorted[0] : '—'}ms・中央値 ${med ?? '—'}ms・最長 ${sorted.length ? sorted[sorted.length - 1] : '—'}ms・1.5秒未満の再開 ${quick}回</p>
+      <table class="events"><thead><tr><th>終わった理由</th><th>回数</th></tr></thead><tbody>${Object.entries(byReason).map(([k, v]) => `<tr><td>${esc(k)}</td><td>${v}</td></tr>`).join('')}</tbody></table>
+      <table class="events"><thead><tr><th>開始したときの画面／状態</th><th>回数</th></tr></thead><tbody>${Object.entries(byPlace).sort((a, b) => b[1] - a[1]).map(([k, v]) => `<tr><td>${esc(k)}</td><td>${v}</td></tr>`).join('')}</tbody></table>
+      <p class="note">画面：menu＝段のメニュー、select＝問題えらび、dir＝のぼり/くだり、play＝練習中、recital＝本番暗唱。状態：listening＝答えを待っている、speaking＝問題を読み上げ中、locked＝正解のあと等、idle＝練習の外。</p>`;
+  }
+
   // ---------- 開発用：マイク受付方式の比較 ----------
   // Chrome が返した文字列をそのまま見せる（JSON 表記＋ふつうでない文字のコード）。補正はしない
   function rawShow(s) {
@@ -501,6 +604,7 @@ const Parent = (() => {
     renderRaw();
     document.querySelectorAll('input[name="mic-mode"]').forEach((x) => { x.checked = x.value === (Store.settings.micMode || 'A'); });
     renderAB();
+    renderBeepSummary();
     renderTimelinePicker();
     renderTimeline();
     $('test-out').textContent = '';
@@ -557,6 +661,10 @@ const Parent = (() => {
     $('raw-filter').onchange = renderRaw;
     document.querySelectorAll('input[name="mic-mode"]').forEach((x) => { x.onchange = () => { Store.setSetting('micMode', x.value); }; });
     $('btn-ab-refresh').onclick = renderAB;
+    $('btn-beep-off').onclick = () => startBeepTest('off');
+    $('btn-beep-on').onclick = () => startBeepTest('on');
+    $('btn-beep-stop').onclick = () => stopBeepTest(false);
+    $('btn-beep-summary').onclick = renderBeepSummary;
     $('tl-pick').onchange = renderTimeline;
     $('btn-tl-refresh').onclick = () => { renderTimelinePicker(); renderTimeline(); };
     $('btn-raw-refresh').onclick = renderRaw;
@@ -577,7 +685,7 @@ const Parent = (() => {
       renderSessions();
       renderRecords();
     };
-    $('btn-parent-back').onclick = () => { Listener.stop(); goTop(); };
+    $('btn-parent-back').onclick = () => { stopBeepTest(false); Listener.stop(); goTop(); };
   }
 
   return { open, init };
