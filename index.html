@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#fbf7ef">
+<title>くく れんしゅう</title>
+<meta name="description" content="九九を声で練習するアプリ（1〜9の段）">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="くく">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- トップ -->
+<section class="screen" id="screen-top">
+  <div class="top-wrap">
+    <h1 class="top-title">くく れんしゅう</h1>
+    <p class="top-hint">だんを えらんでね</p>
+    <div class="dan-picker" id="dan-picker" aria-label="だんを えらぶ"></div>
+    <button class="link-btn" id="btn-parent">⚙ おうちのひと</button>
+    <p class="env-notice" id="env-notice" hidden></p>
+  </div>
+</section>
+
+<!-- 1もんずつ：えらぶ -->
+<section class="screen" id="screen-select">
+  <header class="bar"><button class="back" data-go="menu">← もどる</button><span class="bar-title"><span class="dan-title"></span>・1もんずつ</span><span></span></header>
+  <div class="center-wrap">
+    <div class="select-grid" id="select-grid"></div>
+    <div class="level-picker" aria-label="れんしゅうの しかた"></div>
+  </div>
+</section>
+
+<!-- 段のメニュー -->
+<section class="screen" id="screen-menu">
+  <header class="bar"><button class="back" data-go="top">← もどる</button><span class="bar-title dan-title menu-dan"></span><span></span></header>
+  <div class="center-wrap menu-wrap">
+    <div class="mode-grid">
+      <button class="mode-btn blue" id="mode-single"><span class="mode-ico">🔵</span><span class="mode-name">1もんずつ</span><span class="mode-sub">ひとつずつ れんしゅう</span></button>
+      <button class="mode-btn green" id="mode-seq"><span class="mode-ico">🟢</span><span class="mode-name">じゅんばんに 9もん</span><span class="mode-sub">1から9まで じゅんばんに</span><span class="step-mark" id="mark-seq" hidden>✨</span></button>
+      <button class="mode-btn purple" id="mode-random"><span class="mode-ico">🟣</span><span class="mode-name">ばらばら 9もん</span><span class="mode-sub">じゅんばんを まぜて れんしゅう</span><span class="step-mark" id="mark-random" hidden>✨</span></button>
+      <button class="mode-btn star" id="mode-recital"><span class="mode-ico">⭐</span><span class="mode-name">みないで いえるかな？</span><span class="mode-sub">さいしょから さいごまで じぶんで</span></button>
+    </div>
+    <div class="menu-foot">
+      <div class="level-row"><span class="level-label">みかた</span><div class="level-picker" aria-label="れんしゅうの しかた"></div></div>
+      <button class="link-btn small" id="chain-short-toggle">ちょっとだけ れんしゅう</button>
+      <div class="chain-short" id="chain-short" hidden></div>
+    </div>
+  </div>
+</section>
+
+<!-- のぼり／くだり えらび -->
+<section class="screen" id="screen-dir">
+  <header class="bar"><button class="back" data-go="menu">← もどる</button><span class="bar-title"><span class="dan-title"></span>・<span id="dir-context"></span></span><span></span></header>
+  <div class="center-wrap">
+    <p class="dir-q">どっちにする？</p>
+    <div class="dir-grid">
+      <button class="mode-btn green" id="dir-up"><span class="mode-name">⬆️ のぼり<small>（上り九九）</small></span><span class="mode-sub">1 → 2 → 3 → … → 9</span></button>
+      <button class="mode-btn blue" id="dir-down"><span class="mode-name">⬇️ くだり<small>（下り九九）</small></span><span class="mode-sub">9 → 8 → 7 → … → 1</span></button>
+    </div>
+  </div>
+</section>
+
+<!-- 練習 -->
+<section class="screen" id="screen-play">
+  <header class="bar">
+    <button class="back" id="btn-play-back">← もどる</button>
+    <div class="dots" id="play-dots"></div>
+    <button class="replay" id="btn-replay">🔊 もういちど</button>
+  </header>
+  <div class="stage">
+    <div class="play-label" id="play-label" hidden></div>
+    <div class="play-q" id="play-q"></div>
+    <div class="play-reading" id="play-reading"></div>
+    <div class="play-msg" id="play-msg"></div>
+    <div class="play-sub" id="play-sub"></div>
+    <button class="mic off" id="play-mic" hidden aria-label="マイク"><span class="mic-ico">🎤</span><span class="mic-label" id="play-mic-label"></span></button>
+
+    <div class="hint-box" id="hint-box" hidden>
+      <div class="hint-clue" id="hint-clue"></div>
+      <div class="hint-note" id="hint-note"></div>
+      <button class="soft-btn" id="btn-reveal">こたえをみる</button>
+    </div>
+    <div class="solo-box" id="solo-box" hidden>
+      <button class="mid-btn green" id="btn-solo">こんどは ひとりで♪</button>
+    </div>
+    <div class="after-box" id="after-box" hidden>
+      <button class="mid-btn blue" id="after-again">もういちど</button>
+      <button class="mid-btn green" id="after-next">つぎへ</button>
+      <button class="soft-btn" id="after-list">ほかの もんだい</button>
+    </div>
+  </div>
+  <footer class="play-foot">
+    <span></span>
+    <button class="hint-btn" id="btn-hint">💡 ヒント</button>
+    <button class="cant-hear" id="btn-cant-hear">🎤 うまくきこえない</button>
+  </footer>
+
+  <div class="rescue" id="rescue" hidden>
+    <div class="rescue-card">
+      <p class="rescue-title">おうちのひとに きいてもらおう</p>
+      <p class="rescue-reason" id="rescue-reason"></p>
+      <button class="mid-btn green" id="rescue-ok">○ いえた</button>
+      <div class="rescue-row">
+        <button class="soft-btn" id="rescue-retry">🎤 もういちど マイク</button>
+        <button class="soft-btn" id="rescue-close">とじる</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- つづけて：おわり -->
+<section class="screen" id="screen-done">
+  <div class="center-wrap done-wrap">
+    <div class="done-icon" id="done-icon">✨</div>
+    <p class="done-title" id="done-title"></p>
+    <div class="done-buttons">
+      <button class="mid-btn green" id="done-recite" hidden>こんどは じぶんで いってみる？</button>
+      <button class="mid-btn blue" id="done-end">おしまい</button>
+    </div>
+    <div class="done-buttons">
+      <button class="soft-btn" id="done-next" hidden></button>
+      <button class="soft-btn" id="done-again">もういちど</button>
+    </div>
+  </div>
+</section>
+
+<!-- ⭐ みないで いえるかな？（本番暗唱） -->
+<section class="screen" id="screen-recital">
+  <header class="bar"><button class="back" id="btn-recital-back">← もどる</button><span class="bar-title" id="recital-dir"></span><span></span></header>
+  <div class="stage">
+    <div class="recite-dan dan-title"></div>
+    <div class="recital-sub" id="recital-sub"></div>
+    <button class="big-btn star recital-start" id="recital-start">🎤 スタート</button>
+  </div>
+  <footer class="recital-foot">
+    <button class="mid-btn blue" id="recital-finish" hidden>おわった！</button>
+  </footer>
+</section>
+
+<!-- おうちのひと -->
+<section class="screen" id="screen-parent">
+  <header class="bar"><button class="back" id="btn-parent-back">← もどる</button><span class="bar-title">おうちのひと</span><span></span></header>
+  <div class="parent">
+    <div class="test-banner" id="test-banner" hidden>🧪 動作テストモード中：練習しても記録・成長・反応時間・履歴には残りません</div>
+
+    <section class="card">
+      <h2>練習セッション</h2>
+      <p class="note">1回の練習ごとの記録です。正解の行で「👋 おうちのひとがヒント」を押すと、外部ヒントありとして記録を直せます（ヒントなし成功には数えなくなります）。<br>
+      反応時間は読み上げ終了から正解までです。「※聞き取り直し」がある場合は、純粋に思い出すまでの時間ではありません。</p>
+      <div id="session-list"></div>
+    </section>
+
+    <section class="card">
+      <h2>だんごとの記録（累計）</h2>
+      <div class="dan-tabs" id="parent-dan-tabs"></div>
+      <div class="table-wrap" id="parent-table"></div>
+      <p class="note">成長：🌱はじめ → 🌿ヒントありで言えた → 🌷ヒントなしで言えた → ⭐別の日にもヒントなしで言えた<br>
+      「最近の反応時間」は直近3回の平均（参考値）。聞き取り直しを含むため、セッション記録の実測を優先してください。</p>
+      <p id="parent-chain" class="note"></p>
+    </section>
+
+    <section class="card">
+      <h2>音声認識テスト</h2>
+      <div class="row">
+        <select id="test-dan"></select>
+        <select id="test-target"></select>
+        <span id="test-prompt"></span>
+      </div>
+      <button class="soft-btn" id="btn-test">🎤 テスト開始</button>
+      <div class="test-out" id="test-out"></div>
+    </section>
+
+    <section class="card">
+      <h2>🧪 動作テストモード</h2>
+      <label class="row"><input type="checkbox" id="set-test"> 動作テストモード（おうちのひと・開発者の確認用）</label>
+      <p class="note">ONのあいだは、音声認識・読み上げ・判定・効果音・画面遷移は通常どおり動きますが、学習記録・成長・反応時間・練習履歴には一切加算しません。子ども画面の右上に小さく 🧪 が出ます。</p>
+    </section>
+
+    <section class="card">
+      <h2>設定</h2>
+      <label class="row"><input type="checkbox" id="set-voice"> 音声読み上げ</label>
+      <label class="row"><input type="checkbox" id="set-sound"> 効果音 <button class="tiny" id="btn-sound-test" type="button">試す</button></label>
+      <label class="row">読み上げ速度 <input type="range" id="set-rate" min="0.6" max="1.2" step="0.05"> <span id="set-rate-val"></span>
+        <button class="tiny" id="btn-rate-test" type="button">試す</button></label>
+      <label class="row">声 <select id="set-voice-name"></select></label>
+      <p class="note" id="env-status"></p>
+      <label class="row"><input type="checkbox" id="set-dev"> 🛠 開発用ツールを表示する（音声認識の調査用）</label>
+      <p class="note">ON のあいだだけ、認識した文字や時刻などの開発用ログを、このタブの中に一時的に保存します（タブを閉じると消えます。どこにも送信しません）。</p>
+    </section>
+
+    <section class="card">
+      <h2>この端末の記録について</h2>
+      <p class="note">
+        ・練習の記録は、<b>この端末のこのブラウザの中だけ</b>に保存されます（ログインなし）。ほかの端末やブラウザとは同期しません。<br>
+        ・ブラウザの「閲覧データの削除」をすると記録も消えます。iPad・iPhone では、Safari で開いたときとホーム画面から開いたときで記録が別になります。<br>
+        ・このアプリは、音声や認識した文字を独自のサーバーへ送りません。ただし声を文字にする処理は、ブラウザの音声認識（Chrome は Google、Safari は Apple）が各社のサーバーで行います。<br>
+        ・記録には、聞き取れなかったときに認識された文字（例：「聞き取れず「…」」）や本番暗唱の認識結果も含まれます。不要になったら下の「成長記録をリセット」で消せます。
+      </p>
+      <div class="row">
+        <button class="soft-btn" id="btn-export" type="button">記録をファイルに保存</button>
+        <label class="soft-btn file-btn">記録をファイルから読み込む<input type="file" id="file-import" accept="application/json,.json" hidden></label>
+      </div>
+      <p class="note">端末を変えるときや、ローカル版（localhost）から公開版へ移るときに使います。読み込むと、この端末の今の記録はファイルの内容に置きかわります。</p>
+      <p class="note" id="import-result"></p>
+    </section>
+
+    <div id="dev-tools" hidden>
+    <section class="card">
+      <h2>🛠 開発用：テンポ計測</h2>
+      <p class="note">子ども画面には出ません。学習記録とは別で、このタブを閉じると消えます。</p>
+      <div class="row">
+        <button class="soft-btn" id="btn-lag">開始ラグを計測（旧方式 → 新方式）</button>
+        <button class="tiny" id="btn-perf-copy" type="button">記録をコピー</button>
+        <button class="tiny" id="btn-perf-clear" type="button">記録を消す</button>
+      </div>
+      <p class="note">計測中（約30秒）は声を出さないでください。読み上げを自分のマイクが拾ったかどうかも一緒に確認します。</p>
+      <div class="test-out" id="lag-out"></div>
+      <div class="table-wrap" id="perf-table"></div>
+    </section>
+
+    <section class="card">
+      <h2>🛠 開発用：マイク受付方式の比較（5の段の調査用）</h2>
+      <p class="note">「じゅんばんに 9もん」などの練習で、マイクをいつ・どの設定で開くかを切り替えます。切り替えたあと、同じ人が同じように答えて結果を比べてください。</p>
+      <label class="row"><input type="radio" name="mic-mode" value="A"> A：読み上げ中から受付（現在の方式・continuous＋interim・認識を使い回す）</label>
+      <label class="row"><input type="radio" name="mic-mode" value="B"> B：読み上げ終了直後に新しく開始（continuous＋interim・待ち時間なし）</label>
+      <label class="row"><input type="radio" name="mic-mode" value="C"> C：読み上げ終了直後に新しく開始・「音声認識テスト」と同じ単発設定（continuous＝false・interim＝false）</label>
+      <div class="row"><button class="tiny" id="btn-ab-refresh" type="button">比較表を更新</button></div>
+      <div class="table-wrap" id="ab-table"></div>
+      <h3 class="day">問題ごとのタイムライン（読み上げ・マイク・認識結果・判定を同じ時間軸で）</h3>
+      <div class="row">
+        <select id="tl-pick"></select>
+        <button class="tiny" id="btn-tl-refresh" type="button">更新</button>
+      </div>
+      <div class="raw-log" id="tl-view"></div>
+    </section>
+
+    <section class="card">
+      <h2>🛠 開発用：音声認識の生ログ</h2>
+      <p class="note">Chrome が実際に返した文字列・候補・確信度と、アプリがどう数に直して判定したかを1件ずつ残します（子ども画面には出ません。このタブを閉じると消えます）。<br>
+      「しじゅう」が受け付けられないときは：結果が来ていない → A、別の文字列で来ている → B、文字列は来ているのに判定が C/B → C（アプリ側の正規化）と切り分けられます。</p>
+      <div class="row">
+        <select id="raw-filter">
+          <option value="key">結果と判定だけ</option>
+          <option value="all">すべてのイベント</option>
+          <option value="recital">本番暗唱だけ</option>
+        </select>
+        <button class="tiny" id="btn-raw-refresh" type="button">更新</button>
+        <button class="tiny" id="btn-raw-copy" type="button">ログをコピー</button>
+        <button class="tiny" id="btn-raw-clear" type="button">ログを消す</button>
+      </div>
+      <p class="note" id="raw-caps"></p>
+      <div class="raw-log" id="raw-log"></div>
+    </section>
+
+    </div>
+
+    <section class="card">
+      <h2>リセット</h2>
+      <button class="soft-btn" id="btn-reset">成長記録をリセット</button>
+    </section>
+  </div>
+</section>
+
+<div class="test-badge" id="test-badge" hidden>🧪</div>
+
+<script src="js/data.js"></script>
+<script src="js/judge.js"></script>
+<script src="js/store.js"></script>
+<script src="js/perf.js"></script>
+<script src="js/env.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/recital.js"></script>
+<script src="js/parent.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

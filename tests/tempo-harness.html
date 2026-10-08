@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>テンポ検証ハーネス</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<!--
+  開発用：音声認識と読み上げを擬似的に置き換えて、アプリ本体（../js/*.js）のテンポ処理を検証する。
+  ・FakeSR：start() から onstart まで __sim.startLatency ms かかる。__sim.say() で「話した」ことにする。
+    マイクが受付中でなければ、その発話は LOST（取りこぼし）として記録される。
+  ・偽の speechSynthesis：1文字あたり __sim.msPerChar ms で読み上げ、__sim.echo が true ならマイクが読み上げを拾う。
+-->
+<script>
+window.__sim = { startLatency: 450, msPerChar: 180, echo: true, log: [], lost: [], heardEcho: [] };
+const now = () => Math.round(performance.now());
+class FakeSR {
+  constructor() { this.continuous = false; this.interimResults = false; this._running = false; this._live = false; FakeSR.created++; }
+  start() {
+    if (this._running) throw new DOMException('already started', 'InvalidStateError');
+    this._running = true; this._results = [];
+    setTimeout(() => {
+      if (!this._running) return;
+      this._live = true; FakeSR.live = this;
+      this.onstart && this.onstart();
+    }, __sim.startLatency);
+  }
+  _end(err) {
+    if (!this._running) return;
+    this._running = false; this._live = false;
+    if (FakeSR.live === this) FakeSR.live = null;
+    setTimeout(() => { if (err) this.onerror && this.onerror({ error: err }); this.onend && this.onend(); }, 5);
+  }
+  abort() { this._end('aborted'); }
+  // Chrome の stop()：それまでに聞いた分を final として返してから終わる（__sim.stopFinalizes=false なら返さない）
+  stop() {
+    if (this._running && __sim.stopFinalizes !== false && this._pending) {
+      Object.keys(this._pending).forEach((idx) => {
+        const text = this._pending[idx];
+        this._results[idx] = Object.assign([{ transcript: text, confidence: 0.6 }], { isFinal: true });
+        this.onresult && this.onresult({ resultIndex: +idx, results: this._results });
+      });
+      this._pending = {};
+    }
+    this._end();
+  }
+}
+FakeSR.created = 0; FakeSR.live = null;
+window.webkitSpeechRecognition = FakeSR;
+window.SpeechRecognition = FakeSR;
+
+// 話す（interimAfter / finalAfter は発話開始からの ms）
+__sim.say = (text, { interimAfter = 300, finalAfter = 650, conf = 0.9, tag = 'child' } = {}) => {
+  const r = FakeSR.live;
+  if (!r) { __sim.lost.push({ text, tag, at: now() }); return false; }
+  const idx = r._results.length;
+  r._results.push(undefined);
+  r._pending = r._pending || {};
+  r._pending[idx] = text;
+  const res = (final) => Object.assign([{ transcript: text, confidence: final ? conf : 0 }], { isFinal: final });
+  setTimeout(() => {
+    if (FakeSR.live !== r || r.interimResults === false) return;
+    r._results[idx] = res(false);
+    r.onresult && r.onresult({ resultIndex: idx, results: r._results });
+  }, interimAfter);
+  if (finalAfter === Infinity) return true;   // Chrome が確定させないまま話し続けている状態
+  setTimeout(() => {
+    if (FakeSR.live !== r) return;
+    delete r._pending[idx];
+    r._results[idx] = res(true);
+    r.onresult && r.onresult({ resultIndex: idx, results: r._results });
+    if (!r.continuous || __sim.forceSingle) r._end();
+  }, finalAfter);
+  return true;
+};
+
+// 偽の読み上げ
+const fakeSynth = {
+  speaking: false, pending: false, _cur: null,
+  getVoices: () => [{ name: 'Fake JA', lang: 'ja-JP', localService: true }],
+  cancel() { if (this._cur) { clearTimeout(this._cur.t1); clearTimeout(this._cur.t2); } this._cur = null; this.speaking = false; },
+  speak(u) {
+    this.cancel();
+    const dur = u.text.length * __sim.msPerChar / (u.rate || 1);
+    const cur = this._cur = {};
+    this.speaking = true;
+    cur.t1 = setTimeout(() => {
+      u.onstart && u.onstart();
+      if (__sim.echo && FakeSR.live) { __sim.heardEcho.push(u.text); __sim.say(u.text, { interimAfter: 300, finalAfter: dur + 350, tag: 'echo' }); }
+      cur.t2 = setTimeout(() => { this.speaking = false; this._cur = null; __sim.lastTtsEnd = performance.now(); __sim.onTtsEnd && __sim.onTtsEnd(u.text); u.onend && u.onend(); }, dur);
+    }, 80);
+  },
+};
+Object.defineProperty(window, 'speechSynthesis', { value: fakeSynth });
+window.SpeechSynthesisUtterance = function (text) { this.text = text; };
+</script>
+<div id="app"></div>
+<script>
+(async () => {
+  const html = await (await fetch('../index.html')).text();
+  const body = html.slice(html.indexOf('<body>') + 6, html.indexOf('<script src="js/data.js">'));
+  document.getElementById('app').innerHTML = body;
+  for (const f of ['data', 'judge', 'store', 'perf', 'env', 'audio', 'recital', 'parent', 'app']) {
+    await new Promise((res, rej) => { const s = document.createElement('script'); s.src = `../js/${f}.js`; s.onload = res; s.onerror = rej; document.body.appendChild(s); });
+  }
+  init();
+  Store.setSetting('devTools', true);   // ハーネスでは開発用ログを使う
+  window.__ready = true;
+})();
+</script>
+</body>
+</html>
