@@ -26,7 +26,7 @@
     <h1 class="top-title">くく れんしゅう</h1>
     <p class="top-hint">だんを えらんでね</p>
     <div class="dan-picker" id="dan-picker" aria-label="だんを えらぶ"></div>
-    <button class="shop-entry" id="btn-shop">🍚 おみせで あそぶ</button>
+    <button class="shop-entry" id="btn-shop">🏪 おみせタウンで あそぶ</button>
     <button class="link-btn" id="btn-parent">⚙ おうちのひと</button>
     <p class="env-notice" id="env-notice" hidden></p>
   </div>
@@ -148,9 +148,18 @@
   </footer>
 </section>
 
-<!-- 🍚 ちいさな ごちそうやさん（マイクは使わない） -->
+<!-- 🏪 九九のおみせタウン：お店えらび（マイクは使わない） -->
+<section class="screen" id="screen-town">
+  <header class="bar"><button class="back" id="town-back">← もどる</button><span class="bar-title">九九の おみせタウン</span><span></span></header>
+  <div class="town">
+    <p class="town-hint">どの おみせで あそぶ？</p>
+    <div class="town-grid" id="town-grid"></div>
+  </div>
+</section>
+
+<!-- 🏪 お店（マイクは使わない） -->
 <section class="screen" id="screen-shop">
-  <header class="bar"><button class="back" id="shop-back">← もどる</button><span class="bar-title">ちいさな ごちそうやさん</span><span></span></header>
+  <header class="bar"><button class="back" id="shop-back">← おみせタウン</button><span class="bar-title" id="shop-title"></span><span></span></header>
   <div class="shop">
     <div class="shop-side">
       <div class="shop-customer">
@@ -177,16 +186,25 @@
     </div>
     <div class="shop-counter">
       <div class="shop-plates" id="shop-plates"></div>
-      <div class="shop-foods" id="shop-foods" aria-label="りょうりを えらぶ"></div>
+      <div class="shop-foods" id="shop-foods" aria-label="しょうひんを えらぶ"></div>
     </div>
   </div>
   <div class="shop-unlock" id="shop-unlock" hidden>
     <div class="shop-unlock-card">
-      <p class="shop-unlock-title">✨ あたらしい りょうり ✨</p>
+      <p class="shop-unlock-title">✨ あたらしい しょうひん ✨</p>
       <div class="shop-unlock-food" id="shop-unlock-food"></div>
-      <p class="shop-unlock-name"><span id="shop-unlock-name"></span> が つくれるように なったよ！</p>
-      <p class="shop-unlock-note">したの りょうりから えらべるよ</p>
+      <p class="shop-unlock-name"><span id="shop-unlock-name"></span> が できるように なったよ！</p>
+      <p class="shop-unlock-note">したの しょうひんから えらべるよ</p>
       <button class="mid-btn green" id="shop-unlock-ok">やったね！</button>
+    </div>
+  </div>
+  <div class="shop-unlock shop-intro" id="shop-intro" hidden>
+    <div class="shop-unlock-card">
+      <p class="shop-unlock-title" id="shop-intro-title"></p>
+      <div class="shop-unlock-food" id="shop-intro-item"></div>
+      <p class="shop-intro-line" id="shop-intro-line"></p>
+      <p class="shop-unlock-note" id="shop-intro-sub"></p>
+      <button class="mid-btn green" id="shop-intro-ok">はじめる！</button>
     </div>
   </div>
 </section>

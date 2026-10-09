@@ -438,11 +438,11 @@ table.events td.w, table.events td.h { white-space: normal; }
 .shop-line { font-size: clamp(1.15rem, 3.4vw, 1.5rem); font-weight: 700; line-height: 1.35; }
 .shop-panel { background: #fff; border-radius: 20px; border: 2px solid #f0e2c6; padding: 12px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
 .shop-prep { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 8px; width: 100%; }
-.shop-btn { width: 100%; padding: 14px 6px; white-space: normal; font-size: clamp(1.1rem, 3.4vw, 1.45rem); }
+.shop-btn { width: 100%; padding: 14px 6px; white-space: normal; word-break: keep-all; font-size: clamp(1rem, min(3.4vw, 3vmin), 1.45rem); }
 .shop-btn.soft { background: #efe6d6; color: var(--ink); box-shadow: 0 5px 0 #ddd0b8; }
 .shop-btn:disabled, .shop-check:disabled { opacity: .45; }
 .shop-plate-count { font-size: 1rem; font-weight: 700; color: var(--ink-soft); text-align: center; white-space: nowrap; }
-.shop-check { background: #f0a33a; width: 100%; max-width: 420px; white-space: normal; }
+.shop-check { background: #f0a33a; width: 100%; max-width: 420px; white-space: normal; word-break: keep-all; font-size: clamp(1.05rem, min(4vw, 3.2vmin), 1.5rem); }
 .shop-check:disabled { background: #e6d6bd; color: #7d6a4d; box-shadow: none; }
 .shop-result { display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; }
 .shop-total { font-size: clamp(1.6rem, 5vw, 2.3rem); font-weight: 700; color: #c26f0e; min-height: 1.2em; }
@@ -484,8 +484,8 @@ table.events td.w, table.events td.h { white-space: normal; }
 .plate.lit .plate-dish { border-color: #f0a33a; box-shadow: inset 0 0 0 3px #e6b878, 0 0 0 5px rgba(246, 198, 78, .65), 0 5px 0 #a8703a; }
 .plate.lit { transform: none; }
 .plate-badge {
-  position: absolute; right: -12px; top: -14px; min-width: 2.2em; height: 2.2em; z-index: 1; border-radius: 999px; background: var(--sun);
-  color: var(--ink); font-weight: 700; font-size: clamp(.95rem, 2.6vw, 1.3rem); display: none; align-items: center; justify-content: center;
+  position: absolute; right: -.55em; top: -.65em; min-width: 2.2em; height: 2.2em; z-index: 1; border-radius: 999px; background: var(--sun);
+  color: var(--ink); font-weight: 700; font-size: clamp(.9rem, 2.4vmin, 1.3rem); display: none; align-items: center; justify-content: center;
   padding: 0 .35em; box-shadow: 0 2px 0 #e0ac2f;
 }
 .plate.lit .plate-badge { display: flex; }
@@ -519,3 +519,51 @@ table.events td.w, table.events td.h { white-space: normal; }
   .shop-animal.happy, .shop-animal .heart, .plate:not(.empty), .shop-unlock-food { animation: none; }
   .plate.lit { transform: none; }
 }
+
+/* ---------- 🏪 九九のおみせタウン ---------- */
+#screen-town { background: #fff8ec; }
+.town { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 4px 16px 16px; min-height: 0; }
+.town-hint { margin: 0; font-size: clamp(1.1rem, 3.2vw, 1.4rem); font-weight: 700; color: var(--ink-soft); }
+.town-grid {
+  width: min(980px, 100%); flex: 1; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-auto-rows: 1fr; gap: 12px; min-height: 0;
+}
+@media (orientation: landscape) and (min-width: 900px) { .town-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); grid-auto-rows: auto; align-content: center; } }
+.town-shop {
+  position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  border-radius: 20px; padding: 10px 6px; min-height: 120px; text-align: center;
+}
+.town-shop.open { background: #fff; border: 3px solid #f2c46d; box-shadow: 0 5px 0 #f2c46d; color: var(--ink); }
+.town-shop.open:active { transform: translateY(3px); box-shadow: 0 2px 0 #f2c46d; }
+/* じゅんびちゅう：まだお店をつくっているところ（鍵やロックの見た目にはしない） */
+.town-shop.soon { background: repeating-linear-gradient(135deg, #f7f0e2 0 14px, #f2e8d4 14px 28px); border: 3px dashed #d9c6a2; color: var(--ink-soft); }
+.town-dan { position: absolute; left: 10px; top: 8px; font-size: .8rem; font-weight: 700; background: var(--sun); color: var(--ink); border-radius: 999px; padding: 1px 8px; }
+.town-shop.soon .town-dan { background: #efe6d6; color: var(--ink-soft); }
+.town-ico { width: clamp(52px, 9vmin, 76px); height: clamp(52px, 9vmin, 76px); }
+.town-ico svg { width: 100%; height: 100%; }
+.town-ico.emoji { font-size: clamp(2.4rem, 7vmin, 3.4rem); line-height: 1; display: flex; align-items: center; justify-content: center; opacity: .75; }
+.town-name { font-size: clamp(.95rem, 2.6vw, 1.15rem); font-weight: 700; }
+.town-soon { font-size: .8rem; font-weight: 700; }
+.town-got { display: flex; gap: 2px; min-height: 22px; }
+.town-mini { width: 22px; height: 22px; }
+.town-mini svg { width: 100%; height: 100%; }
+
+/* お店ごとの入れ物（1セット） */
+.plate-dish.dish-1 {
+  border-radius: 50%; background: radial-gradient(circle, #fff 62%, #fde4ea 64%, #fff 70%);
+  border: 5px solid #f3b6c2; box-shadow: 0 5px 0 #e79aab;
+}
+.plate-dish.dish-2 {
+  border-radius: 22%; background: repeating-linear-gradient(90deg, #f2dfb8 0 10px, #ead39f 10px 12px);
+  border: 5px solid #b98a52; box-shadow: inset 0 0 0 3px #d9b77d, 0 5px 0 #946a3a;
+}
+.plate-dish.dish-3 {
+  border-radius: 18%; background-color: #eaf4fc;
+  background-image: repeating-linear-gradient(0deg, rgba(127,184,230,.22) 0 12px, transparent 12px 24px), repeating-linear-gradient(90deg, rgba(127,184,230,.22) 0 12px, transparent 12px 24px);
+  border: 5px solid #7fb8e6; box-shadow: 0 5px 0 #5f9bcc;
+}
+.plate.lit .plate-dish.dish-1, .plate.lit .plate-dish.dish-2, .plate.lit .plate-dish.dish-3 { border-color: #f0a33a; box-shadow: 0 0 0 5px rgba(246, 198, 78, .65); }
+.plate.empty .plate-dish.dish-1, .plate.empty .plate-dish.dish-2, .plate.empty .plate-dish.dish-3 { background: transparent; border: 3px dashed #d9c6a2; box-shadow: none; }
+.shop-intro-line { font-size: clamp(1.5rem, 4.6vw, 2rem); font-weight: 700; line-height: 1.3; margin: 6px 0 8px; color: #c26f0e; }
+/* 3こ・5こ ならべるお店：右上の しょうひんに 数字が かからないよう、少しだけ外へ */
+.plate:has(.dish-3) .plate-badge, .plate:has(.dish-5) .plate-badge { right: -.8em; top: -.9em; }
+.shop-intro-line .nowrap { white-space: nowrap; display: inline-block; }

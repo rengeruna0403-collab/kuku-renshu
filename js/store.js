@@ -44,9 +44,31 @@ const Store = (() => {
   const nowIso = () => new Date().toISOString();
   const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 
-  // 🍚 おみせ（ごちそうやさん）の進行状況。暗唱練習の記録とは別。
-  //   deliveries：おとどけした回数（料理の解放に使う）／selected：選んでいる料理／history：最近のおとどけ（親画面用）
-  const defaultShop = () => ({ deliveries: 0, selected: 'rice', history: [] });
+  // 🏪 九九のおみせタウン の進行状況（お店ごとに独立）。暗唱練習の記録とは別。
+  //   shops[段] = { deliveries：おとどけ回数（商品の解放に使う）, selected：選んでいる商品, history：最近のおとどけ, introSeen：紹介を見たか }
+  //   ※ 将来の「ごちゃまぜやさん」は、deliveries > 0 のお店（＝遊んだ段）と全商品の解放状況から判定する想定
+  const defaultShop = () => ({ deliveries: 0, selected: null, history: [], introSeen: false });
+
+  // 旧形式：ごちそうやさん（5の段だけ・shop キー・料理 rice/onigiri/tamago/dango）→ ごはんやさん（shops["5"]）
+  // おとどけ回数をそのまま引き継ぐので解放段階は変わらない。選んでいた料理は同じ段階の新しい料理へ。
+  const OLD_FOOD_TO_GOHAN = { rice: 'rice', onigiri: 'furikake', tamago: 'takikomi', dango: 'curry' };
+  function migrateShops(saved) {
+    const shops = {};
+    if (saved && saved.shops && typeof saved.shops === 'object') {
+      Object.keys(saved.shops).forEach((k) => { shops[k] = { ...defaultShop(), ...saved.shops[k] }; });
+    }
+    if (saved && saved.shop && !shops['5']) {
+      const old = saved.shop;
+      shops['5'] = {
+        ...defaultShop(),
+        deliveries: old.deliveries || 0,
+        selected: OLD_FOOD_TO_GOHAN[old.selected] || 'rice',
+        history: (old.history || []).map((h) => ({ ...h, food: OLD_FOOD_TO_GOHAN[h.food] || h.food })),
+        migratedFrom: 'gochisouya',
+      };
+    }
+    return shops;
+  }
 
   function emptyData(settings) {
     const multiplication = {};
@@ -54,7 +76,7 @@ const Store = (() => {
       multiplication[d] = {};
       MULTIPLIERS.forEach((m) => { multiplication[d][m] = defaultProblem(); });
     });
-    return { version: VERSION, settings: { ...defaultSettings(), ...settings }, multiplication, chain: {}, recitation: {}, recital: {}, shop: defaultShop(), sessions: [] };
+    return { version: VERSION, settings: { ...defaultSettings(), ...settings }, multiplication, chain: {}, recitation: {}, recital: {}, shops: {}, sessions: [] };
   }
 
   // ---------- 旧形式（v1：multiplication5 + log）からの移行 ----------
@@ -133,7 +155,7 @@ const Store = (() => {
     d.chain = saved.chain || {};
     d.recitation = saved.recitation || {};
     d.recital = saved.recital || {};
-    d.shop = { ...defaultShop(), ...(saved.shop || {}) };
+    d.shops = migrateShops(saved);
     d.sessions = Array.isArray(saved.sessions) ? saved.sessions : [];
     return d;
   }
@@ -313,20 +335,25 @@ const Store = (() => {
     return true;
   }
 
-  // ---------- 🍚 おみせ ----------
+  // ---------- 🏪 おみせ（お店ごと） ----------
   // テストモード中は端末に保存しない（その場かぎりのコピーで遊べる）
-  let shopTemp = null;
-  const shopData = () => {
-    if (!testing()) { shopTemp = null; return data.shop; }
-    if (!shopTemp) shopTemp = JSON.parse(JSON.stringify(data.shop));
-    return shopTemp;
+  let shopsTemp = null;
+  const shopData = (dan) => {
+    const key = String(dan);
+    let shops;
+    if (!testing()) { shopsTemp = null; shops = data.shops; } else {
+      if (!shopsTemp) shopsTemp = JSON.parse(JSON.stringify(data.shops));
+      shops = shopsTemp;
+    }
+    if (!shops[key]) shops[key] = defaultShop();
+    return shops[key];
   };
-  function setShop(patch) {
-    Object.assign(shopData(), patch);
+  function setShop(dan, patch) {
+    Object.assign(shopData(dan), patch);
     if (!testing()) save();
   }
-  function recordShopDelivery(entry) {
-    const sh = shopData();
+  function recordShopDelivery(dan, entry) {
+    const sh = shopData(dan);
     sh.deliveries++;
     sh.history.push({ time: nowIso(), ...entry });
     if (sh.history.length > 50) sh.history.splice(0, sh.history.length - 50);
@@ -364,6 +391,6 @@ const Store = (() => {
     problem, beginSession, endSession, countRetries,
     recordCorrect, recordOther, recordUnheard, recordSilence, recordHint, recordChain, recordRecitation, recordRecital,
     setExternalHint, setRecitalJudge, exportJSON, importJSON,
-    get shop() { return shopData(); }, setShop, recordShopDelivery, resetRecords, dayOf,
+    shopOf: shopData, setShop, recordShopDelivery, resetRecords, dayOf,
   };
 })();

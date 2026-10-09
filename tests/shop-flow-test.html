@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>おみせタウン 動作テスト</title>
+<style>body{font-family:sans-serif;font-size:13px} iframe{width:1280px;height:800px;border:1px solid #ccc} .ng{color:#c00;font-weight:bold}</style>
+</head>
+<body>
+<!--
+  開発用：おみせタウンの動作テスト（公開しない）。本物の index.html を iframe で開いて操作する。
+  ※ この画面を開いたブラウザの記録（localStorage）を一時的に書きかえ、最後に元へもどす。
+  結果は #result に出る（headless Chrome の --dump-dom で読める）。
+    ?size=1024x600 で画面サイズを変えられる
+-->
+<pre id="result">running</pre>
+<iframe id="f"></iframe>
+<script>
+(async () => {
+  const KEY = 'kuku-renshu-v1';
+  const saved = localStorage.getItem(KEY);
+  const savedBk = localStorage.getItem(KEY + '-backup');
+  const q = new URLSearchParams(location.search);
+  const [W, H] = (q.get('size') || '1280x800').split('x').map(Number);
+  const f = document.getElementById('f');
+  f.style.width = W + 'px'; f.style.height = H + 'px';
+  const lines = []; let ng = 0;
+  const ok = (cond, msg) => { if (!cond) ng++; lines.push(`${cond ? 'OK ' : 'NG '} ${msg}`); };
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  const load = () => new Promise((r) => { f.onload = () => setTimeout(r, 300); f.src = '../index.html?t=' + Date.now(); });
+  let G, $, micStarts = 0;
+  const attach = () => {
+    G = (s) => f.contentWindow.eval(s);
+    $ = (id) => f.contentDocument.getElementById(id);
+    G('Voice').speak = () => Promise.resolve('skip');
+    const Mic = G('Mic'); const orig = Mic.start; Mic.start = function () { micStarts++; return orig.apply(this, arguments); };
+    // 認識エンジンそのものの起動も数える
+    const SR = f.contentWindow.SpeechRecognition || f.contentWindow.webkitSpeechRecognition;
+    if (SR) { const o = SR.prototype.start; SR.prototype.start = function () { micStarts++; return o.apply(this, arguments); }; }
+  };
+  const vis = (el) => !!el && !el.hidden && el.getClientRects().length > 0;
+  const rect = (el) => el.getBoundingClientRect();
+  // 絵の外側には余白があるので、まん中 64% を「絵のある所」とみなす
+  const core = (el) => { const r = rect(el), dx = r.width * .18, dy = r.height * .18; return { left: r.left + dx, right: r.right - dx, top: r.top + dy, bottom: r.bottom - dy }; };
+  const inter = (a, b, m) => Math.min(a.right, b.right) - Math.max(a.left, b.left) > m && Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > m;
+
+  try {
+    // ---- 1) 旧ごちそうやさんの記録 → ごはんやさんへ引き継ぎ ----
+    localStorage.removeItem(KEY + '-backup');
+    localStorage.setItem(KEY, JSON.stringify({ version: 2, settings: { dan: 5 }, multiplication: {}, chain: {}, recitation: {}, recital: {}, sessions: [],
+      shop: { deliveries: 5, selected: 'dango', history: [{ at: 1, order: 3, food: 'tamago', animal: 'bear' }, { at: 2, order: 7, food: 'onigiri', animal: 'cat' }] } }));
+    await load(); attach();
+    let s5 = G('Store.shopOf(5)');
+    ok(s5.deliveries === 5, `移行：おとどけ回数 5 → ${s5.deliveries}`);
+    ok(s5.selected === 'curry', `移行：えらんでいた だんご → ${s5.selected}`);
+    ok(s5.history.map((h) => h.food).join() === 'takikomi,furikake', `移行：履歴 tamago,onigiri → ${s5.history.map((h) => h.food)}`);
+    ok(G('Store.shopOf(1)').deliveries === 0 && G('Store.shopOf(2)').deliveries === 0, '移行：ほかのお店は 0 から');
+
+    // ---- 2) タウン画面 ----
+    $('btn-shop').click(); await wait(50);
+    ok($('screen-town').classList.contains('active'), 'トップ → おみせタウン');
+    const cards = [...f.contentDocument.querySelectorAll('#town-grid .town-shop')];
+    ok(cards.length === 9, `お店 9けん（${cards.length}）`);
+    const open = cards.filter((c) => c.classList.contains('open')).map((c) => +c.dataset.dan);
+    ok(open.join() === '1,2,3,5', `あそべるお店 1,2,3,5（${open}）`);
+    const soon = cards.filter((c) => c.classList.contains('soon'));
+    ok(soon.every((c) => c.tagName !== 'BUTTON' && /じゅんびちゅう/.test(c.textContent) && !/🔒|ロック|あと/.test(c.textContent)), 'じゅんびちゅう 5けん：ボタンでない・鍵や条件の表示なし');
+    soon[0].click(); await wait(50);
+    ok($('screen-town').classList.contains('active'), 'じゅんびちゅうを押しても なにも起きない');
+    const names = cards.map((c) => c.querySelector('.town-name').textContent).join('/');
+    ok(names === 'いちごやさん/にんじんやさん/サンドイッチやさん/しばいぬやさん/ごはんやさん/ロールケーキやさん/七色インコやさん/たこのうみ/クッキーやさん', names);
+    // タウンのはみ出し
+    const tg = rect($('screen-town'));
+    ok(cards.every((c) => { const r = rect(c); return r.bottom <= tg.bottom + 1 && r.right <= tg.right + 1 && r.left >= tg.left - 1; }), `タウン ${W}×${H} ではみ出しなし`);
+
+    // ---- 3) 各お店 1〜9セット ----
+    for (const dan of [1, 2, 3, 5]) {
+      const card = f.contentDocument.querySelector(`#town-grid .town-shop.open[data-dan="${dan}"]`);
+      card.click(); await wait(50);
+      ok($('screen-shop').classList.contains('active'), `${dan}のだん：お店をひらく`);
+      const introNeeded = !G(`Store.shopOf(${dan})`).introSeen;
+      ok(vis($('shop-intro')) === introNeeded, `${dan}のだん：はじめての説明 ${introNeeded ? 'でる' : 'でない'}「${$('shop-intro-line').textContent}」`);
+      if (vis($('shop-intro'))) { $('shop-intro-ok').click(); await wait(20); }
+      const S = G('Shop.state');
+      const unit = G('Shop.SHOPS').find((s) => s.dan === dan).unit;
+      const bad = [];
+      for (let n = 1; n <= 9; n++) {
+        S.run++; S.order = n; S.plates = 0; S.phase = 'order';
+        $('shop-remove').onclick(); // 0 のまま画面をつくりなおす（ボタンが無効でも直接よぶ）
+        // かくにん前は おとどけできない
+        for (let i = 0; i < n; i++) $('shop-add').click();
+        if (vis($('shop-deliver'))) bad.push(`n${n}:かくにん前におとどけボタン`);
+        const before = G(`Store.shopOf(${dan})`).deliveries;
+        $('shop-deliver').onclick();
+        if (G(`Store.shopOf(${dan})`).deliveries !== before) bad.push(`n${n}:かくにん前におとどけできた`);
+        $('shop-check').click(); await wait(30);
+        if (S.phase !== 'counting') bad.push(`n${n}:かぞえはじめない`);
+        if (vis($('shop-deliver'))) bad.push(`n${n}:かぞえ中におとどけボタン`);
+        $('shop-deliver').onclick();
+        if (G(`Store.shopOf(${dan})`).deliveries !== before) bad.push(`n${n}:かぞえ中におとどけできた`);
+        $('shop-skip').click(); await wait(10);
+        const plates = [...f.contentDocument.querySelectorAll('#shop-plates .plate:not(.empty)')];
+        const badges = plates.map((p) => p.querySelector('.plate-badge').textContent.trim());
+        const want = Array.from({ length: n }, (_, i) => String((i + 1) * dan));
+        if (badges.join() !== want.join()) bad.push(`n${n}:累計 ${badges}`);
+        if (!plates.every((p) => p.querySelectorAll('.food').length === dan)) bad.push(`n${n}:1セットの数がちがう`);
+        if ($('shop-eq').textContent !== `${dan} × ${n} ＝ ${dan * n}`) bad.push(`n${n}:式 ${$('shop-eq').textContent}`);
+        if ($('shop-total').textContent !== `ぜんぶで ${dan * n}${unit}`) bad.push(`n${n}:合計 ${$('shop-total').textContent}`);
+        if (!vis($('shop-deliver'))) bad.push(`n${n}:かくにん後におとどけボタンがない`);
+        // 重なり・はみ出し
+        const area = rect($('shop-plates'));
+        plates.forEach((p, i) => {
+          const pr = rect(p.querySelector('.plate-dish'));
+          if (pr.bottom > area.bottom + 1 || pr.right > area.right + 1 || pr.top < area.top - 1 || pr.left < area.left - 1) bad.push(`n${n}:${i + 1}セットめが はみ出し`);
+          plates.slice(i + 1).forEach((q2, j) => { if (inter(pr, rect(q2.querySelector('.plate-dish')), 1)) bad.push(`n${n}:入れ物${i + 1}と${i + j + 2}が重なる`); });
+          const fr = [...p.querySelectorAll('.food')].map(core);
+          fr.forEach((a, k) => {
+            if (a.left < pr.left - 1 || a.right > pr.right + 1 || a.top < pr.top - 1 || a.bottom > pr.bottom + 1) bad.push(`n${n}:しょうひんが入れ物の外`);
+            fr.slice(k + 1).forEach((b) => { if (inter(a, b, 2)) bad.push(`n${n}:しょうひんどうしが重なる`); });
+          });
+          const bd = rect(p.querySelector('.plate-badge'));
+          const hit = fr.map((a) => Math.min(Math.min(a.right, bd.right) - Math.max(a.left, bd.left), Math.min(a.bottom, bd.bottom) - Math.max(a.top, bd.top))).filter((v) => v > 2);
+          if (hit.length) bad.push(`n${n}:数字がしょうひんに ${Math.round(Math.max(...hit))}px かぶる`);
+        });
+      }
+      ok(bad.length === 0, `${dan}のだん：1〜9セット 累計・式・合計・おとどけ制御・重なり ${bad.length ? bad.slice(0, 6).join(' / ') : ''}`);
+
+      // おとどけ → 解放（2・4・6回）
+      const start = G(`Store.shopOf(${dan})`).deliveries;
+      const pops = [];
+      for (let k = 0; k < 7; k++) {
+        S.run++; S.order = 2; S.plates = 0; S.phase = 'order'; $('shop-remove').onclick();
+        $('shop-add').click(); $('shop-add').click(); $('shop-check').click(); await wait(10); $('shop-skip').click();
+        $('shop-deliver').click(); await wait(10);
+        if (vis($('shop-unlock'))) { pops.push(G(`Store.shopOf(${dan})`).deliveries + ':' + $('shop-unlock-name').textContent); $('shop-unlock-ok').click(); }
+      }
+      const end = G(`Store.shopOf(${dan})`).deliveries;
+      ok(end === start + 7, `${dan}のだん：おとどけ ${start} → ${end}`);
+      lines.push(`     あたらしい しょうひん：${pops.join(' / ') || '（なし）'}`);
+      const chips = [...f.contentDocument.querySelectorAll('#shop-foods .food-chip')];
+      ok(chips.every((c) => !c.classList.contains('locked')), `${dan}のだん：7回で 4しゅるい ぜんぶ えらべる`);
+      // しょうひんを えらぶ
+      S.run++; S.order = 1; S.plates = 0; S.phase = 'order'; $('shop-remove').onclick();
+      const chip = f.contentDocument.querySelectorAll('#shop-foods .food-chip')[2]; // 描きなおし後の ボタン
+      chip.click(); await wait(10);
+      ok(G(`Store.shopOf(${dan})`).selected === chip.dataset.id, `${dan}のだん：しょうひん「${chip.dataset.id}」をえらんで保存`);
+      $('shop-back').click(); await wait(30);
+      ok($('screen-town').classList.contains('active'), `${dan}のだん：← おみせタウン でもどる`);
+    }
+    const snap = Object.fromEntries([1, 2, 3, 5].map((d) => [d, G(`Store.shopOf(${d})`)]).map(([d, s]) => [d, { deliveries: s.deliveries, selected: s.selected, introSeen: s.introSeen, hist: s.history.length }]));
+    lines.push('     保存前：' + JSON.stringify(snap));
+    ok(micStarts === 0, `マイク起動 0回（${micStarts}）`);
+
+    // ---- 4) 再読みこみ後も お店ごとに のこる ----
+    await load(); attach();
+    const snap2 = Object.fromEntries([1, 2, 3, 5].map((d) => [d, G(`Store.shopOf(${d})`)]).map(([d, s]) => [d, { deliveries: s.deliveries, selected: s.selected, introSeen: s.introSeen, hist: s.history.length }]));
+    ok(JSON.stringify(snap) === JSON.stringify(snap2), '再読みこみ後も お店ごとの記録が のこる');
+    const raw = JSON.parse(localStorage.getItem(KEY));
+    ok(raw.shops && !('shop' in raw) && Object.keys(raw.shops).sort().join() === '1,2,3,5', `保存形式：shops{${Object.keys(raw.shops || {})}}・旧shopなし`);
+    ok(raw.multiplication && raw.recitation && raw.settings, '練習の記録の入れ物はそのまま');
+    $('btn-shop').click(); await wait(30);
+    const minis = [1, 2, 3, 5].map((d) => f.contentDocument.querySelectorAll(`.town-shop[data-dan="${d}"] .town-mini`).length);
+    ok(minis.every((m) => m === 4), `タウンのミニアイコン（できる商品）${minis}`);
+    f.contentDocument.querySelector('.town-shop.open[data-dan="1"]').click(); await wait(30);
+    ok(!vis($('shop-intro')), '説明は2回目以降 でない');
+    ok(micStarts === 0, `再読みこみ後も マイク起動 0回（${micStarts}）`);
+
+    // ---- 5) テストモードでは 記録が変わらない ----
+    $('shop-back').click(); $('town-back').click(); await wait(30);
+    G('Store').setSetting('testMode', true);
+    const d1 = G('Store.shopOf(1)').deliveries;
+    $('btn-shop').click(); f.contentDocument.querySelector('.town-shop.open[data-dan="1"]').click(); await wait(30);
+    const S = G('Shop.state'); S.run++; S.order = 1; S.plates = 0; S.phase = 'order'; $('shop-remove').onclick();
+    $('shop-add').click(); $('shop-check').click(); await wait(10); $('shop-skip').click(); $('shop-deliver').click();
+    G('Store').setSetting('testMode', false);
+    ok(G('Store.shopOf(1)').deliveries === d1 && JSON.parse(localStorage.getItem(KEY)).shops['1'].deliveries === d1, 'テストモードのおとどけは 記録に のこらない');
+  } catch (e) {
+    ng++; lines.push('ERROR ' + e.message + '\n' + e.stack);
+  } finally {
+    if (saved === null) localStorage.removeItem(KEY); else localStorage.setItem(KEY, saved);
+    if (savedBk === null) localStorage.removeItem(KEY + '-backup'); else localStorage.setItem(KEY + '-backup', savedBk);
+  }
+  lines.push(`\n${ng === 0 ? 'ALL PASS' : ng + ' NG'}  (${W}x${H})`);
+  document.getElementById('result').textContent = lines.join('\n');
+  document.body.dataset.done = '1';
+})();
+</script>
+</body>
+</html>
