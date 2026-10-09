@@ -197,6 +197,7 @@ const Parent = (() => {
     $('parent-chain').innerHTML =
       `じゅんばん（のぼり）${chain[CHAIN_MAIN] ? '✓' : '—'}・じゅんばん（くだり）${chain[`${CHAIN_MAIN}-down`] ? '✓' : '—'}・ばらばら ${chain[`${CHAIN_MAIN}-random`] ? '✓' : '—'}・ちょっとだけ ${CHAIN_SHORT.map((s) => `${s}もん${chain[s] ? '✓' : '—'}`).join(' ')}<br>` +
       `⭐みないで いえるかな？：${recitalStats(tabDan)}` +
+      (tabDan === 5 ? `<br>🍚 おみせ（5の段）：おとどけ ${Store.shop.deliveries}回・つくれる料理 ${Shop.FOODS.filter((f) => Store.shop.deliveries >= f.unlockAt).map((f) => f.name).join('・')}` : '') +
       (rec ? `<br>（旧）じぶんでいってみよう：できた ${rec.done}回（うちヒントあり ${rec.withHint}回）` : '');
   }
 

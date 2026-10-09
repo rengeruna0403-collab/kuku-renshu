@@ -2,7 +2,7 @@
 // 方針：ネットワーク優先（つながっていれば常に最新を使う）。つながらないときだけ保存しておいた画面を出す。
 // 音声認識はブラウザがインターネット経由で行うため、オフラインでは使えない（画面が開けるだけ）。
 // ファイルを追加・改名したら ASSETS を直し、CACHE の番号を上げる。
-const CACHE = 'kuku-renshu-v2';
+const CACHE = 'kuku-renshu-v3';
 const ASSETS = [
   './',
   './index.html',
@@ -15,6 +15,7 @@ const ASSETS = [
   './js/env.js',
   './js/audio.js',
   './js/recital.js',
+  './js/shop.js',
   './js/parent.js',
   './js/app.js',
   './icons/icon-192.png',

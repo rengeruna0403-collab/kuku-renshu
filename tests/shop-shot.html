@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ごちそうやさん スクリーンショット用</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<!--
+  開発用：お店モードを指定の状態にして表示する（スクリーンショット確認用。公開しない）
+    ?state=order&n=3&plates=2&food=rice&animal=bear
+    ?state=counting&n=7&step=4
+    ?state=confirmed&n=9&food=dango
+    ?state=delivered&n=3&animal=rabbit
+    ?state=unlock&food=onigiri
+    ?state=top
+  マイク・読み上げは使わない。端末の記録には書き込まない（テストモード）。
+-->
+<div id="app"></div>
+<script>
+(async () => {
+  const html = await (await fetch('../index.html')).text();
+  document.getElementById('app').innerHTML = html.slice(html.indexOf('<body>') + 6, html.indexOf('<script src="js/data.js">'));
+  for (const f of ['data', 'judge', 'store', 'perf', 'env', 'audio', 'recital', 'shop', 'parent', 'app']) {
+    await new Promise((res, rej) => { const s = document.createElement('script'); s.src = `../js/${f}.js`; s.onload = res; s.onerror = rej; document.body.appendChild(s); });
+  }
+  init();
+  Store.setSetting('testMode', true);
+  Voice.speak = () => Promise.resolve('skip');
+  const q = new URLSearchParams(location.search);
+  const state = q.get('state') || 'order';
+  if (state === 'top') { document.body.dataset.ready = '1'; return; }
+  const sh = Store.shop;
+  sh.deliveries = +(q.get('deliveries') || 6);
+  sh.selected = q.get('food') || 'rice';
+  Shop.open();
+  const S = Shop.state;
+  const n = +(q.get('n') || 3);
+  const animal = q.get('animal');
+  if (animal) S.animal = { bear: { id: 'bear', name: 'くまさん', hello: 'こんにちは！', thanks: 'わーい！ ありがとう！ おなか ぺこぺこ だったんだ' }, rabbit: { id: 'rabbit', name: 'うさぎさん', hello: 'こんにちは〜', thanks: 'おいしそう！ うれしいな、ありがとう！' }, cat: { id: 'cat', name: 'ねこさん', hello: 'にゃあ、こんにちは！', thanks: 'にゃ〜ん！ ありがとう、いただきます！' } }[animal];
+  S.order = n;
+  S.plates = 0;
+  S.phase = 'order';
+  // 注文の状態を描き直す
+  const plates = q.has('plates') ? +q.get('plates') : n;
+  document.getElementById('shop-line').textContent = '';
+  for (let i = 0; i < plates; i++) document.getElementById('shop-add').click();
+  {
+    document.getElementById('shop-animal').innerHTML = Shop.animalSVG(S.animal.id, plates > n ? 'wonder' : 'order');
+    document.getElementById('shop-name').textContent = S.animal.name;
+    document.getElementById('shop-line').textContent = plates > n ? `あれ？ ${n}さらで いいよ` : `${S.animal.hello} ${Shop.FOODS.find((f) => f.id === sh.selected).name}を ${n}さら おねがい！`;
+  }
+  if (state !== 'order') {
+    document.getElementById('shop-check').click();
+    if (state === 'counting') {
+      await new Promise((r) => setTimeout(r, 650 * (+(q.get('step') || 2)) - 300));
+    } else {
+      document.getElementById('shop-skip').click();
+    }
+    if (state === 'delivered' || state === 'unlock') {
+      if (state === 'unlock') sh.deliveries = Shop.FOODS.find((f) => f.id === (q.get('unlock') || 'onigiri')).unlockAt - 1;
+      document.getElementById('shop-deliver').click();
+    }
+  }
+  document.querySelectorAll('.plate').forEach((p) => { p.style.animation = 'none'; });
+  document.body.dataset.ready = '1';
+})();
+</script>
+</body>
+</html>

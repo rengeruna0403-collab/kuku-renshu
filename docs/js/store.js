@@ -44,13 +44,17 @@ const Store = (() => {
   const nowIso = () => new Date().toISOString();
   const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 
+  // 🍚 おみせ（ごちそうやさん）の進行状況。暗唱練習の記録とは別。
+  //   deliveries：おとどけした回数（料理の解放に使う）／selected：選んでいる料理／history：最近のおとどけ（親画面用）
+  const defaultShop = () => ({ deliveries: 0, selected: 'rice', history: [] });
+
   function emptyData(settings) {
     const multiplication = {};
     DANS.forEach((d) => {
       multiplication[d] = {};
       MULTIPLIERS.forEach((m) => { multiplication[d][m] = defaultProblem(); });
     });
-    return { version: VERSION, settings: { ...defaultSettings(), ...settings }, multiplication, chain: {}, recitation: {}, recital: {}, sessions: [] };
+    return { version: VERSION, settings: { ...defaultSettings(), ...settings }, multiplication, chain: {}, recitation: {}, recital: {}, shop: defaultShop(), sessions: [] };
   }
 
   // ---------- 旧形式（v1：multiplication5 + log）からの移行 ----------
@@ -129,6 +133,7 @@ const Store = (() => {
     d.chain = saved.chain || {};
     d.recitation = saved.recitation || {};
     d.recital = saved.recital || {};
+    d.shop = { ...defaultShop(), ...(saved.shop || {}) };
     d.sessions = Array.isArray(saved.sessions) ? saved.sessions : [];
     return d;
   }
@@ -308,6 +313,26 @@ const Store = (() => {
     return true;
   }
 
+  // ---------- 🍚 おみせ ----------
+  // テストモード中は端末に保存しない（その場かぎりのコピーで遊べる）
+  let shopTemp = null;
+  const shopData = () => {
+    if (!testing()) { shopTemp = null; return data.shop; }
+    if (!shopTemp) shopTemp = JSON.parse(JSON.stringify(data.shop));
+    return shopTemp;
+  };
+  function setShop(patch) {
+    Object.assign(shopData(), patch);
+    if (!testing()) save();
+  }
+  function recordShopDelivery(entry) {
+    const sh = shopData();
+    sh.deliveries++;
+    sh.history.push({ time: nowIso(), ...entry });
+    if (sh.history.length > 50) sh.history.splice(0, sh.history.length - 50);
+    if (!testing()) save();
+  }
+
   // 記録の書き出し（設定・成長・セッションをそのまま JSON に）
   function exportJSON() {
     return JSON.stringify({ app: 'kuku-renshu', exportedAt: nowIso(), data }, null, 1);
@@ -338,6 +363,7 @@ const Store = (() => {
     setSetting(k, v) { data.settings[k] = v; save(); },
     problem, beginSession, endSession, countRetries,
     recordCorrect, recordOther, recordUnheard, recordSilence, recordHint, recordChain, recordRecitation, recordRecital,
-    setExternalHint, setRecitalJudge, exportJSON, importJSON, resetRecords, dayOf,
+    setExternalHint, setRecitalJudge, exportJSON, importJSON,
+    get shop() { return shopData(); }, setShop, recordShopDelivery, resetRecords, dayOf,
   };
 })();

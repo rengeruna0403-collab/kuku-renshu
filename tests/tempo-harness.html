@@ -105,7 +105,7 @@ window.SpeechSynthesisUtterance = function (text) { this.text = text; };
   const html = await (await fetch('../index.html')).text();
   const body = html.slice(html.indexOf('<body>') + 6, html.indexOf('<script src="js/data.js">'));
   document.getElementById('app').innerHTML = body;
-  for (const f of ['data', 'judge', 'store', 'perf', 'env', 'audio', 'recital', 'parent', 'app']) {
+  for (const f of ['data', 'judge', 'store', 'perf', 'env', 'audio', 'recital', 'shop', 'parent', 'app']) {
     await new Promise((res, rej) => { const s = document.createElement('script'); s.src = `../js/${f}.js`; s.onload = res; s.onerror = rej; document.body.appendChild(s); });
   }
   init();

@@ -26,6 +26,7 @@
     <h1 class="top-title">くく れんしゅう</h1>
     <p class="top-hint">だんを えらんでね</p>
     <div class="dan-picker" id="dan-picker" aria-label="だんを えらぶ"></div>
+    <button class="shop-entry" id="btn-shop">🍚 おみせで あそぶ</button>
     <button class="link-btn" id="btn-parent">⚙ おうちのひと</button>
     <p class="env-notice" id="env-notice" hidden></p>
   </div>
@@ -145,6 +146,49 @@
   <footer class="recital-foot">
     <button class="mid-btn blue" id="recital-finish" hidden>おわった！</button>
   </footer>
+</section>
+
+<!-- 🍚 ちいさな ごちそうやさん（マイクは使わない） -->
+<section class="screen" id="screen-shop">
+  <header class="bar"><button class="back" id="shop-back">← もどる</button><span class="bar-title">ちいさな ごちそうやさん</span><span></span></header>
+  <div class="shop">
+    <div class="shop-side">
+      <div class="shop-customer">
+        <div class="shop-animal" id="shop-animal"></div>
+        <div class="shop-bubble"><span class="shop-name" id="shop-name"></span><span class="shop-line" id="shop-line"></span></div>
+      </div>
+      <div class="shop-panel">
+        <div class="shop-prep" id="shop-prep">
+          <button class="mid-btn shop-btn soft" id="shop-remove">− もどす</button>
+          <span class="shop-plate-count" id="shop-plate-count"></span>
+          <button class="mid-btn shop-btn green" id="shop-add">＋ ならべる</button>
+        </div>
+        <button class="mid-btn shop-check" id="shop-check">ぜんぶで なんこ？ かくにん！</button>
+        <div class="shop-result" id="shop-result" hidden>
+          <div class="shop-total" id="shop-total"></div>
+          <div class="shop-eq" id="shop-eq"></div>
+          <div class="shop-reading"><span id="shop-reading"></span> <button class="tiny-round" id="shop-read" aria-label="よみかたを きく">🔊</button></div>
+          <button class="soft-btn" id="shop-skip">とばす ⏩</button>
+        </div>
+        <button class="mid-btn shop-deliver" id="shop-deliver" hidden>🛵 おとどけする</button>
+        <div class="shop-thanks" id="shop-thanks"></div>
+        <button class="mid-btn blue" id="shop-next" hidden>つぎの おきゃくさんを よぶ</button>
+      </div>
+    </div>
+    <div class="shop-counter">
+      <div class="shop-plates" id="shop-plates"></div>
+      <div class="shop-foods" id="shop-foods" aria-label="りょうりを えらぶ"></div>
+    </div>
+  </div>
+  <div class="shop-unlock" id="shop-unlock" hidden>
+    <div class="shop-unlock-card">
+      <p class="shop-unlock-title">✨ あたらしい りょうり ✨</p>
+      <div class="shop-unlock-food" id="shop-unlock-food"></div>
+      <p class="shop-unlock-name"><span id="shop-unlock-name"></span> が つくれるように なったよ！</p>
+      <p class="shop-unlock-note">したの りょうりから えらべるよ</p>
+      <button class="mid-btn green" id="shop-unlock-ok">やったね！</button>
+    </div>
+  </div>
 </section>
 
 <!-- おうちのひと -->
@@ -295,6 +339,7 @@
 <script src="js/env.js"></script>
 <script src="js/audio.js"></script>
 <script src="js/recital.js"></script>
+<script src="js/shop.js"></script>
 <script src="js/parent.js"></script>
 <script src="js/app.js"></script>
 </body>

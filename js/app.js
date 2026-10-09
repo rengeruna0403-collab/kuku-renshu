@@ -642,6 +642,7 @@ function init() {
   Env.init();
 
   Parent.init();
+  Shop.init();
   renderDanPicker();
   show('top');
 }
