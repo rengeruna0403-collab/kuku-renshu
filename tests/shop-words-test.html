@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>おみせタウン ことばのテスト</title>
+<style>body{font-family:sans-serif;font-size:13px} iframe{width:1280px;height:800px;border:1px solid #ccc}</style>
+</head>
+<body>
+<!--
+  開発用（公開しない）：お礼・つぎの案内・解放のおしらせ・読み上げの ことばを 9けんぶん 確かめる。
+  動物のお店（4・7・8）に 食べ物を思わせる言葉が出ないこと、食べ物のお店は これまでどおりであること。
+  テストモードで動かすので 端末の記録は変わらない。結果は #result（headless Chrome の --dump-dom で読める）。
+-->
+<pre id="result">running</pre>
+<iframe id="f" src="../index.html"></iframe>
+<script>
+(async () => {
+  const lines = []; let ng = 0;
+  const ok = (c, m) => { if (!c) ng++; lines.push(`${c ? 'OK ' : 'NG '} ${m}`); };
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  const f = document.getElementById('f');
+  await new Promise((r) => { if (f.contentDocument && f.contentDocument.readyState === 'complete') r(); else f.onload = r; });
+  await wait(300);
+  const G = (s) => f.contentWindow.eval(s);
+  const $ = (id) => f.contentDocument.getElementById(id);
+  const spoken = [];
+  G('Voice').speak = (t) => { spoken.push(t); return Promise.resolve('skip'); };
+  G('Store').setSetting('testMode', true);
+  const FOODY = /おいし|いただき|ぺこぺこ|おなか|たべ|しょうひん|だすよ|できるように/;
+  const PET = {
+    4: 'かわいい！ たいせつにするね！',
+    7: 'わあ、きれい！ ありがとう！',
+    8: 'すごい！ げんきに およいでね！',
+  };
+  const FOOD_THANKS = ['わーい！ ありがとう！ おなか ぺこぺこ だったんだ', 'おいしそう！ うれしいな、ありがとう！', 'にゃ〜ん！ ありがとう、いただきます！'];
+  try {
+    $('btn-shop').click(); await wait(50);
+    for (let dan = 1; dan <= 9; dan++) {
+      const p = G(`Store.shopOf(${dan})`); p.deliveries = 1; p.introSeen = true; p.selected = null;
+      f.contentDocument.querySelector(`.town-shop.open[data-dan="${dan}"]`).click(); await wait(30);
+      const S = G('Shop.state');
+      spoken.length = 0;
+      for (let i = 0; i < S.order; i++) $('shop-add').click();
+      $('shop-check').click(); await wait(10); $('shop-skip').click();
+      const said0 = spoken.length;
+      $('shop-deliver').click(); await wait(20);
+      const thanks = $('shop-line').textContent;
+      const panel = $('shop-thanks').textContent;
+      const unlock = `${$('shop-unlock-title').textContent}｜${$('shop-unlock-name').textContent}${$('shop-unlock-after').textContent}｜${$('shop-unlock-note').textContent}`;
+      const unlockSaid = spoken.slice(said0).join(' / ');
+      $('shop-unlock-use').click(); await wait(10);
+      const next = $('shop-next-item').textContent.replace(/\s+/g, ' ').trim();
+      $('shop-next').click(); await wait(10);
+      const order = $('shop-line').textContent, orderSaid = spoken[spoken.length - 1];
+      const all = [thanks, panel, unlock, unlockSaid, next, order, orderSaid].join(' ');
+      if (PET[dan]) {
+        ok(thanks === PET[dan], `${dan}のだん お礼「${thanks}」`);
+        ok(unlock === `✨ あたらしい なかま ✨｜${G('Shop.SHOPS')[dan - 1].items[1].label} が きてくれたよ！｜したから えらべるよ` && unlockSaid === `あたらしい なかま、${G('Shop.SHOPS')[dan - 1].items[1].label}が きてくれたよ`, `${dan}のだん 解放「${unlock}」 読み上げ「${unlockSaid}」`);
+        ok(/おむかえするよ$/.test(next), `${dan}のだん つぎの案内「${next}」`);
+        ok(!FOODY.test(all), `${dan}のだん 食べ物の言葉なし（注文「${order}」・読み上げ「${orderSaid}」・おれい「${panel}」）`);
+      } else {
+        ok(FOOD_THANKS.includes(thanks), `${dan}のだん お礼（これまでどおり）「${thanks}」`);
+        ok(unlock.startsWith('✨ あたらしい しょうひん ✨｜') && unlock.endsWith(' が できるように なったよ！｜したの しょうひんから えらべるよ') && unlockSaid.startsWith('あたらしい しょうひん、'), `${dan}のだん 解放（これまでどおり）「${unlock}」 読み上げ「${unlockSaid}」`);
+        ok(/だすよ$/.test(next), `${dan}のだん つぎの案内（これまでどおり）「${next}」`);
+      }
+      ok(order.endsWith(orderSaid), `${dan}のだん 注文の文と読み上げが一致「${orderSaid}」`);
+      $('shop-back').click(); await wait(20);
+    }
+  } catch (e) {
+    ng++; lines.push('ERROR ' + e.message + '\n' + e.stack);
+  } finally {
+    G('Store').setSetting('testMode', false);
+  }
+  lines.push(`\n${ng === 0 ? 'ALL PASS' : ng + ' NG'}`);
+  document.getElementById('result').textContent = lines.join('\n');
+})();
+</script>
+</body>
+</html>

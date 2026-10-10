@@ -18,6 +18,7 @@ const Shop = (() => {
 
   // 全9店舗。ready: false のお店は「じゅんびちゅう」（学習の成果によるロックではない）
   // legs: true …… 1セット＝動物1ぴき。数える対象は あし（段の数だけ）。合計は「あしが ぜんぶで ○ほん」
+  // pet …………… 動物のお店（食べ物ではない）。お礼・つぎの案内・解放のおしらせを 動物むけの言葉にする
   const SHOPS = [
     {
       dan: 1, name: 'いちごやさん', item: 'いちご', unit: 'こ', intro: 'いちごの「いち」は 1', introSub: 'いちご 1こで 1セット', dish: 'dish-1', ready: true,
@@ -33,7 +34,7 @@ const Shop = (() => {
     },
     {
       dan: 4, name: 'しばいぬやさん', item: 'しばいぬ', unit: 'ほん', intro: 'しばいぬの「し」は 4', introSub: 'しばいぬ 1ぴきに あしが 4ほん', dish: 'dish-4', ready: true,
-      legs: true, counter: hiki,
+      legs: true, counter: hiki, pet: { thanks: 'かわいい！ たいせつにするね！' },
       items: [{ id: 'cha', label: 'ちゃしば' }, { id: 'kuro', label: 'くろしば' }, { id: 'shiro', label: 'しろしば' }, { id: 'crown', label: 'おうかん しば' }],
     },
     {
@@ -46,11 +47,12 @@ const Shop = (() => {
     },
     {
       dan: 7, name: '七色インコやさん', item: 'インコ', unit: 'わ', intro: '七色インコの「なな」は 7', introSub: 'なないろの インコ 7わで 1セット', dish: 'dish-7', ready: true,
+      pet: { thanks: 'わあ、きれい！ ありがとう！' },
       items: [{ id: 'normal', label: 'なないろ インコ' }, { id: 'hat', label: 'ぼうし インコ' }, { id: 'sparkle', label: 'キラキラ インコ' }, { id: 'crown', label: 'おうかん インコ' }],
     },
     {
       dan: 8, name: 'たこのうみ', item: 'たこ', unit: 'ほん', intro: 'たこの あしは 8ほん', introSub: 'たこ 1ぴきに あしが 8ほん', dish: 'dish-8', ready: true,
-      legs: true, counter: hiki,
+      legs: true, counter: hiki, pet: { thanks: 'すごい！ げんきに およいでね！' },
       items: [{ id: 'red', label: 'あかい たこ' }, { id: 'blue', label: 'あおい たこ' }, { id: 'sparkle', label: 'キラキラ たこ' }, { id: 'rainbow', label: 'にじいろ たこ' }],
     },
     {
@@ -334,7 +336,7 @@ const Shop = (() => {
   function renderNextItem() {
     const box = $('shop-next-item');
     box.hidden = S.phase !== 'delivered';
-    if (!box.hidden) box.innerHTML = `つぎは <span class="shop-next-ico">${itemSVG(S.dan, item().id)}</span><b>${item().label}</b> を だすよ`;
+    if (!box.hidden) box.innerHTML = `つぎは <span class="shop-next-ico">${itemSVG(S.dan, item().id)}</span><b>${item().label}</b> を ${shop().pet ? 'おむかえするよ' : 'だすよ'}`;
   }
 
   // 商品をえらぶ。注文の数・進み具合は変えない（新しい注文も出さない）
@@ -436,7 +438,7 @@ const Shop = (() => {
     const it = item();
     Store.recordShopDelivery(S.dan, { dan: S.dan, plates: S.order, total: S.dan * S.order, food: it.id, animal: S.animal.id });
     Sound.pinpon();
-    renderCustomer('happy', S.animal.thanks);
+    renderCustomer('happy', shop().pet ? shop().pet.thanks : S.animal.thanks);
     $('shop-thanks').textContent = shop().legs
       ? `${it.label} ${sets(S.order)}、おとどけ できたね！`
       : `${it.label} ${S.dan * S.order}${shop().unit}、おとどけ できたね！`;
@@ -450,8 +452,12 @@ const Shop = (() => {
   function showUnlock(it) {
     $('shop-unlock-food').innerHTML = itemSVG(S.dan, it.id);
     $('shop-unlock-name').textContent = it.label;
+    const pet = !!shop().pet;
+    $('shop-unlock-title').textContent = pet ? '✨ あたらしい なかま ✨' : '✨ あたらしい しょうひん ✨';
+    $('shop-unlock-after').textContent = pet ? ' が きてくれたよ！' : ' が できるように なったよ！';
+    $('shop-unlock-note').textContent = pet ? 'したから えらべるよ' : 'したの しょうひんから えらべるよ';
     $('shop-unlock').hidden = false;
-    Voice.speak(`あたらしい しょうひん、${it.label}が できるように なったよ`);
+    Voice.speak(pet ? `あたらしい なかま、${it.label}が きてくれたよ` : `あたらしい しょうひん、${it.label}が できるように なったよ`);
   }
 
   // 解放のおしらせから そのまま「つぎは これにする」

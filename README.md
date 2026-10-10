@@ -106,7 +106,7 @@ node tests/recital-test.js
 ```
 
 全81問の 正解値・表示・読み・数値変換・A/B/C 判定と、本番暗唱の追跡（9段×のぼり/くだり×表記ゆれ・言い直し）を機械チェックする。
-`tests/shop-shot.html` はおみせタウンを指定の状態で表示する確認用ページ（`?state=town|order|counting|confirmed|delivered|unlock|intro&dan=1〜9`、`&close=1` で解放のおしらせを とじたあと）。`tests/shop-flow-test.html` は本物の画面を iframe で操作する動作テスト（9けん×1〜9セット・累計・式・合計・あしの本数・インコ7色・おとどけ制御・重なり・商品えらびのタイミング・解放・保存・Phase 1と旧記録の引き継ぎ。`?size=1024x600`）、`tests/shop-mic-test.html` はタウン／お店でマイクが動かないこと・戻ったあと練習がふだんどおり進むことの確認（偽の音声認識を使う）。どちらも結果を画面上部に表示する。
+`tests/shop-shot.html` はおみせタウンを指定の状態で表示する確認用ページ（`?state=town|order|counting|confirmed|delivered|unlock|intro&dan=1〜9`、`&close=1` で解放のおしらせを とじたあと）。`tests/shop-flow-test.html` は本物の画面を iframe で操作する動作テスト（9けん×1〜9セット・累計・式・合計・あしの本数・インコ7色・おとどけ制御・重なり・商品えらびのタイミング・解放・保存・Phase 1と旧記録の引き継ぎ。`?size=1024x600`）、`tests/shop-mic-test.html` はタウン／お店でマイクが動かないこと・戻ったあと練習がふだんどおり進むことの確認（偽の音声認識を使う）。`tests/shop-words-test.html` は9けんの お礼・つぎの案内・解放のおしらせ・読み上げの ことばの確認（動物のお店＝しばいぬ・インコ・たこ に 食べ物の言葉が出ないこと）。どれも結果を画面上部に表示する。
 `tests/tempo-harness.html` はマイクと読み上げを擬似的に置き換えて、テンポ（受付開始の待ち・取りこぼし）を確かめる開発用ページ（ブラウザで開く）。
 
 ## ファイル
