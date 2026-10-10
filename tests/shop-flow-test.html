@@ -46,14 +46,23 @@
   try {
     // ---- 1) 旧ごちそうやさんの記録 → ごはんやさんへ引き継ぎ ----
     localStorage.removeItem(KEY + '-backup');
-    localStorage.setItem(KEY, JSON.stringify({ version: 2, settings: { dan: 5 }, multiplication: {}, chain: {}, recitation: {}, recital: {}, sessions: [],
+    // Phase 1 で遊んだ記録（いちご・にんじんは コンプリート）と、さらに古い ごちそうやさんの記録
+    const P1 = {
+      1: { deliveries: 7, selected: 'gold', history: [{ at: 1, dan: 1, plates: 3, total: 3, food: 'gold', animal: 'bear' }], introSeen: true },
+      2: { deliveries: 6, selected: 'sparkle', history: [], introSeen: true },
+      3: { deliveries: 1, selected: null, history: [], introSeen: true },
+    };
+    localStorage.setItem(KEY, JSON.stringify({ version: 2, settings: { dan: 5 }, multiplication: { 5: { 3: { ok: 2 } } }, chain: {}, recitation: {}, recital: {}, sessions: [], shops: P1,
       shop: { deliveries: 5, selected: 'dango', history: [{ at: 1, order: 3, food: 'tamago', animal: 'bear' }, { at: 2, order: 7, food: 'onigiri', animal: 'cat' }] } }));
     await load(); attach();
     let s5 = G('Store.shopOf(5)');
     ok(s5.deliveries === 5, `移行：おとどけ回数 5 → ${s5.deliveries}`);
     ok(s5.selected === 'curry', `移行：えらんでいた だんご → ${s5.selected}`);
     ok(s5.history.map((h) => h.food).join() === 'takikomi,furikake', `移行：履歴 tamago,onigiri → ${s5.history.map((h) => h.food)}`);
-    ok(G('Store.shopOf(1)').deliveries === 0 && G('Store.shopOf(2)').deliveries === 0, '移行：ほかのお店は 0 から');
+    const k1 = G('Store.shopOf(1)'), k2 = G('Store.shopOf(2)'), k3 = G('Store.shopOf(3)');
+    ok(k1.deliveries === 7 && k1.selected === 'gold' && k1.history.length === 1 && k2.deliveries === 6 && k2.selected === 'sparkle' && k3.deliveries === 1,
+      `Phase 1 の記録：いちご 7回・きんいろ／にんじん 6回・キラキラ／サンド 1回 → ${k1.deliveries}・${k1.selected}／${k2.deliveries}・${k2.selected}／${k3.deliveries}`);
+    ok([4, 6, 7, 8, 9].every((d) => G(`Store.shopOf(${d})`).deliveries === 0), 'あたらしい5けんは 0 から');
 
     // ---- 2) タウン画面 ----
     $('btn-shop').click(); await wait(50);
@@ -61,19 +70,74 @@
     const cards = [...f.contentDocument.querySelectorAll('#town-grid .town-shop')];
     ok(cards.length === 9, `お店 9けん（${cards.length}）`);
     const open = cards.filter((c) => c.classList.contains('open')).map((c) => +c.dataset.dan);
-    ok(open.join() === '1,2,3,5', `あそべるお店 1,2,3,5（${open}）`);
-    const soon = cards.filter((c) => c.classList.contains('soon'));
-    ok(soon.every((c) => c.tagName !== 'BUTTON' && /じゅんびちゅう/.test(c.textContent) && !/🔒|ロック|あと/.test(c.textContent)), 'じゅんびちゅう 5けん：ボタンでない・鍵や条件の表示なし');
-    soon[0].click(); await wait(50);
-    ok($('screen-town').classList.contains('active'), 'じゅんびちゅうを押しても なにも起きない');
+    ok(open.join() === '1,2,3,4,5,6,7,8,9', `あそべるお店 1〜9 の順（${open}）`);
+    ok(!/じゅんびちゅう/.test($('town-grid').textContent), '「じゅんびちゅう」は もうない');
+    const mini = (d) => f.contentDocument.querySelectorAll(`.town-shop[data-dan="${d}"] .town-mini`).length;
+    ok(mini(1) === 4 && mini(2) === 4 && mini(3) === 1 && mini(5) === 3, `タウンの できる商品：いちご4・にんじん4・サンド1・ごはん3（${mini(1)}・${mini(2)}・${mini(3)}・${mini(5)}）`);
     const names = cards.map((c) => c.querySelector('.town-name').textContent).join('/');
     ok(names === 'いちごやさん/にんじんやさん/サンドイッチやさん/しばいぬやさん/ごはんやさん/ロールケーキやさん/七色インコやさん/たこのうみ/クッキーやさん', names);
     // タウンのはみ出し
     const tg = rect($('screen-town'));
     ok(cards.every((c) => { const r = rect(c); return r.bottom <= tg.bottom + 1 && r.right <= tg.right + 1 && r.left >= tg.left - 1; }), `タウン ${W}×${H} ではみ出しなし`);
 
+    // ---- 2.5) 商品えらびのタイミング（クッキーやさん） ----
+    {
+      const spoken = []; let cancels = 0;
+      G('Voice').speak = (t) => { spoken.push(t); return Promise.resolve('skip'); };
+      const oc = G('Voice').cancel; G('Voice').cancel = function () { cancels++; return oc.apply(this, arguments); };
+      f.contentDocument.querySelector('#town-grid .town-shop.open[data-dan="9"]').click(); await wait(50);
+      if (vis($('shop-intro'))) { $('shop-intro-ok').click(); await wait(20); }
+      const S = G('Shop.state');
+      const chip = (id) => f.contentDocument.querySelector(`#shop-foods .food-chip[data-id="${id}"]`);
+      const lineNow = () => $('shop-line').textContent;
+      const serve = async () => { for (let i = 0; i < S.order; i++) $('shop-add').click(); $('shop-check').click(); await wait(10); $('shop-skip').click(); $('shop-deliver').click(); await wait(10); };
+      await serve();
+      ok(S.phase === 'delivered' && !chip('plain').disabled, 'おとどけのあと（つぎの おきゃくさんを まつ間）商品ボタンが おせる');
+      ok(vis($('shop-next-item')) && /プレーン クッキー/.test($('shop-next-item').textContent), `つぎに だす商品を表示「${$('shop-next-item').textContent.trim()}」`);
+      $('shop-next').click(); await wait(10);
+      await serve();   // 2回目 → チョコチップが解放
+      ok(vis($('shop-unlock')) && $('shop-unlock-name').textContent === 'チョコチップ クッキー', `2回目で解放：${$('shop-unlock-name').textContent}`);
+      ok(G('Store.shopOf(9)').selected !== 'chip', '解放しても 今の商品は 勝手に変えない');
+      ok(chip('chip').classList.contains('fresh') && /NEW/.test(chip('chip').textContent), '解放した商品に NEW のしるし');
+      const order0 = S.order, deliv0 = G('Store.shopOf(9)').deliveries, run0 = S.run;
+      $('shop-unlock-use').click(); await wait(10);
+      ok($('shop-unlock').hidden && G('Store.shopOf(9)').selected === 'chip', '「つぎは これに する！」で えらべる');
+      ok(S.phase === 'delivered' && S.order === order0 && G('Store.shopOf(9)').deliveries === deliv0 && S.run === run0, 'えらんでも 注文は出ない・おとどけ回数は ふえない');
+      ok(/チョコチップ クッキー/.test($('shop-next-item').textContent) && !chip('chip').classList.contains('fresh'), 'つぎに だす商品が チョコチップに かわる・NEW は消える');
+      $('shop-next').click(); await wait(10);
+      ok(lineNow().includes(`チョコチップ クッキーを ${S.order}セット おねがい！`) && spoken[spoken.length - 1] === `チョコチップ クッキーを ${S.order}セット おねがい！`, `えらんだ商品で 注文がくる「${lineNow()}」`);
+      // 注文のあと・ならべる前に かえる
+      const n0 = S.order, c0 = cancels, d0 = G('Store.shopOf(9)').deliveries;
+      chip('plain').click(); await wait(10);
+      const want = `プレーン クッキーを ${n0}セット おねがい！`;
+      ok(lineNow() === want && S.order === n0 && G('Store.shopOf(9)').deliveries === d0, `注文のあとに かえると 注文の文も かわる（数は同じ）「${lineNow()}」`);
+      ok(cancels === c0 + 1 && spoken[spoken.length - 1] === want, `読み上げ中の注文を止めて 言いなおす「${spoken[spoken.length - 1]}」`);
+      // 連打しても 最後の画面と 最後の読み上げが一致
+      chip('chip').click(); chip('plain').click(); chip('chip').click(); await wait(10);
+      ok(lineNow() === spoken[spoken.length - 1] && lineNow().startsWith('チョコチップ'), `つづけて かえても 画面と読み上げが一致「${lineNow()}」`);
+      // ならべはじめたら かえられない
+      $('shop-add').click();
+      ok(chip('plain').disabled, 'ならべはじめたら 商品ボタンは おせない');
+      chip('plain').onclick();
+      ok(G('Store.shopOf(9)').selected === 'chip' && lineNow().startsWith('チョコチップ'), 'ならべている途中は 直接よんでも 変わらない');
+      $('shop-remove').click();
+      ok(!chip('plain').disabled, 'ぜんぶ もどすと また えらべる');
+      // 数のかくにん中・かくにん後も かえられない
+      for (let i = 0; i < S.order; i++) $('shop-add').click();
+      $('shop-check').click(); await wait(10);
+      chip('plain').onclick();
+      const okCounting = G('Store.shopOf(9)').selected === 'chip';
+      $('shop-skip').click();
+      chip('plain').onclick();
+      ok(okCounting && G('Store.shopOf(9)').selected === 'chip', 'かくにん中・おとどけ前は 変わらない');
+      $('shop-deliver').click(); await wait(10);
+      if (vis($('shop-unlock'))) $('shop-unlock-ok').click();
+      G('Voice').speak = () => Promise.resolve('skip'); G('Voice').cancel = oc;
+      $('shop-back').click(); await wait(30);
+    }
+
     // ---- 3) 各お店 1〜9セット ----
-    for (const dan of [1, 2, 3, 5]) {
+    for (const dan of [1, 2, 3, 4, 5, 6, 7, 8, 9]) {
       const card = f.contentDocument.querySelector(`#town-grid .town-shop.open[data-dan="${dan}"]`);
       card.click(); await wait(50);
       ok($('screen-shop').classList.contains('active'), `${dan}のだん：お店をひらく`);
@@ -81,7 +145,8 @@
       ok(vis($('shop-intro')) === introNeeded, `${dan}のだん：はじめての説明 ${introNeeded ? 'でる' : 'でない'}「${$('shop-intro-line').textContent}」`);
       if (vis($('shop-intro'))) { $('shop-intro-ok').click(); await wait(20); }
       const S = G('Shop.state');
-      const unit = G('Shop.SHOPS').find((s) => s.dan === dan).unit;
+      const SH = G('Shop.SHOPS').find((s) => s.dan === dan);
+      const unit = SH.unit;
       const bad = [];
       for (let n = 1; n <= 9; n++) {
         S.run++; S.order = n; S.plates = 0; S.phase = 'order';
@@ -102,9 +167,20 @@
         const badges = plates.map((p) => p.querySelector('.plate-badge').textContent.trim());
         const want = Array.from({ length: n }, (_, i) => String((i + 1) * dan));
         if (badges.join() !== want.join()) bad.push(`n${n}:累計 ${badges}`);
-        if (!plates.every((p) => p.querySelectorAll('.food').length === dan)) bad.push(`n${n}:1セットの数がちがう`);
+        if (SH.legs) {
+          // しばいぬ・たこ：1セット＝1ぴき、あしが 段の数だけ
+          if (!plates.every((p) => p.querySelectorAll('.food').length === 1 && p.querySelectorAll('.food .leg').length === dan)) bad.push(`n${n}:1ぴきの あしの数がちがう`);
+        } else if (!plates.every((p) => p.querySelectorAll('.food').length === dan)) bad.push(`n${n}:1セットの数がちがう`);
+        if (dan === 7) {
+          // 7わの色が ぜんぶ ちがう（赤〜紫）
+          const colorsOk = plates.every((p) => new Set([...p.querySelectorAll('.food svg')].map((sv) => sv.querySelector('ellipse').getAttribute('fill'))).size === 7);
+          if (!colorsOk) bad.push(`n${n}:インコ7わが7色でない`);
+        }
+        if ($('shop-plate-count').textContent !== '') bad.push(`n${n}:かくにん後も セット数表示`);
         if ($('shop-eq').textContent !== `${dan} × ${n} ＝ ${dan * n}`) bad.push(`n${n}:式 ${$('shop-eq').textContent}`);
-        if ($('shop-total').textContent !== `ぜんぶで ${dan * n}${unit}`) bad.push(`n${n}:合計 ${$('shop-total').textContent}`);
+        const wantTotal = SH.legs ? `あしが ぜんぶで ${dan * n}ほん` : `ぜんぶで ${dan * n}${unit}`;
+        if ($('shop-total').textContent !== wantTotal) bad.push(`n${n}:合計 ${$('shop-total').textContent}`);
+
         if (!vis($('shop-deliver'))) bad.push(`n${n}:かくにん後におとどけボタンがない`);
         // 重なり・はみ出し
         const area = rect($('shop-plates'));
@@ -127,12 +203,24 @@
       // おとどけ → 解放（2・4・6回）
       const start = G(`Store.shopOf(${dan})`).deliveries;
       const pops = [];
+      const popBad = [];
       for (let k = 0; k < 7; k++) {
-        S.run++; S.order = 2; S.plates = 0; S.phase = 'order'; $('shop-remove').onclick();
-        $('shop-add').click(); $('shop-add').click(); $('shop-check').click(); await wait(10); $('shop-skip').click();
+        const n = k + 1;
+        S.run++; S.order = n; S.plates = 0; S.phase = 'order'; $('shop-remove').onclick();
+        for (let i = 0; i < n; i++) $('shop-add').click();
+        $('shop-check').click(); await wait(10); $('shop-skip').click();
         $('shop-deliver').click(); await wait(10);
-        if (vis($('shop-unlock'))) { pops.push(G(`Store.shopOf(${dan})`).deliveries + ':' + $('shop-unlock-name').textContent); $('shop-unlock-ok').click(); }
+        const wantThanks = SH.legs ? `${n}${['', 'ぴき', 'ひき', 'びき', 'ひき', 'ひき', 'ぴき', 'ひき', 'ぴき', 'ひき'][n]}、` : `${dan * n}${unit}、`;
+        if (!$('shop-thanks').textContent.includes(wantThanks)) popBad.push(`おれい「${$('shop-thanks').textContent}」`);
+        const dv = G(`Store.shopOf(${dan})`).deliveries;
+        const idx = G('Shop.UNLOCK_AT').indexOf(dv);
+        if (vis($('shop-unlock'))) {
+          pops.push(dv + ':' + $('shop-unlock-name').textContent);
+          if (idx < 1 || $('shop-unlock-name').textContent !== SH.items[idx].label) popBad.push(`${dv}回目に ${$('shop-unlock-name').textContent}`);
+          $('shop-unlock-ok').click();
+        } else if (idx >= 1) popBad.push(`${dv}回目に 解放なし`);
       }
+      ok(popBad.length === 0, `${dan}のだん：おとどけ1〜7セット・おれいの文・2/4/6回目の解放 ${popBad.slice(0, 4).join(' / ')}`);
       const end = G(`Store.shopOf(${dan})`).deliveries;
       ok(end === start + 7, `${dan}のだん：おとどけ ${start} → ${end}`);
       lines.push(`     あたらしい しょうひん：${pops.join(' / ') || '（なし）'}`);
@@ -146,19 +234,19 @@
       $('shop-back').click(); await wait(30);
       ok($('screen-town').classList.contains('active'), `${dan}のだん：← おみせタウン でもどる`);
     }
-    const snap = Object.fromEntries([1, 2, 3, 5].map((d) => [d, G(`Store.shopOf(${d})`)]).map(([d, s]) => [d, { deliveries: s.deliveries, selected: s.selected, introSeen: s.introSeen, hist: s.history.length }]));
+    const snap = Object.fromEntries([1, 2, 3, 4, 5, 6, 7, 8, 9].map((d) => [d, G(`Store.shopOf(${d})`)]).map(([d, s]) => [d, { deliveries: s.deliveries, selected: s.selected, introSeen: s.introSeen, hist: s.history.length }]));
     lines.push('     保存前：' + JSON.stringify(snap));
     ok(micStarts === 0, `マイク起動 0回（${micStarts}）`);
 
     // ---- 4) 再読みこみ後も お店ごとに のこる ----
     await load(); attach();
-    const snap2 = Object.fromEntries([1, 2, 3, 5].map((d) => [d, G(`Store.shopOf(${d})`)]).map(([d, s]) => [d, { deliveries: s.deliveries, selected: s.selected, introSeen: s.introSeen, hist: s.history.length }]));
+    const snap2 = Object.fromEntries([1, 2, 3, 4, 5, 6, 7, 8, 9].map((d) => [d, G(`Store.shopOf(${d})`)]).map(([d, s]) => [d, { deliveries: s.deliveries, selected: s.selected, introSeen: s.introSeen, hist: s.history.length }]));
     ok(JSON.stringify(snap) === JSON.stringify(snap2), '再読みこみ後も お店ごとの記録が のこる');
     const raw = JSON.parse(localStorage.getItem(KEY));
-    ok(raw.shops && !('shop' in raw) && Object.keys(raw.shops).sort().join() === '1,2,3,5', `保存形式：shops{${Object.keys(raw.shops || {})}}・旧shopなし`);
-    ok(raw.multiplication && raw.recitation && raw.settings, '練習の記録の入れ物はそのまま');
+    ok(raw.shops && !('shop' in raw) && Object.keys(raw.shops).sort().join() === '1,2,3,4,5,6,7,8,9', `保存形式：shops{${Object.keys(raw.shops || {})}}・旧shopなし`);
+    ok(raw.multiplication && raw.multiplication['5'] && raw.recitation && raw.settings, '練習の記録（5の段の かけ算の記録）は のこる');
     $('btn-shop').click(); await wait(30);
-    const minis = [1, 2, 3, 5].map((d) => f.contentDocument.querySelectorAll(`.town-shop[data-dan="${d}"] .town-mini`).length);
+    const minis = [1, 2, 3, 4, 5, 6, 7, 8, 9].map((d) => f.contentDocument.querySelectorAll(`.town-shop[data-dan="${d}"] .town-mini`).length);
     ok(minis.every((m) => m === 4), `タウンのミニアイコン（できる商品）${minis}`);
     f.contentDocument.querySelector('.town-shop.open[data-dan="1"]').click(); await wait(30);
     ok(!vis($('shop-intro')), '説明は2回目以降 でない');

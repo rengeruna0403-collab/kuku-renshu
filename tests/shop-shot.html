@@ -14,7 +14,7 @@
     ?state=counting&dan=2&n=7&step=4
     ?state=confirmed&dan=3&n=9&item=mix
     ?state=delivered&dan=5&n=3&animal=rabbit
-    ?state=unlock&dan=1&n=2&unlock=big
+    ?state=unlock&dan=1&n=2&unlock=big（&close=1 で おしらせを とじたあと）
     ?state=intro&dan=3
     ?state=top
   マイク・読み上げは使わない。端末の記録には書き込まない（テストモード）。
@@ -35,8 +35,8 @@
   if (state === 'top') { document.body.dataset.ready = '1'; return; }
   const dan = +(q.get('dan') || 5);
   // 進み具合（テストモード中の一時コピーだけ）
-  [1, 2, 3, 5].forEach((d) => { const p = Store.shopOf(d); p.deliveries = +(q.get('deliveries') || 6); p.introSeen = true; });
-  if (state === 'town') { Store.shopOf(2).deliveries = 2; Store.shopOf(3).deliveries = 0; Shop.openTown(); document.body.dataset.ready = '1'; return; }
+  [1, 2, 3, 4, 5, 6, 7, 8, 9].forEach((d) => { const p = Store.shopOf(d); p.deliveries = +(q.get('deliveries') || 6); p.introSeen = true; });
+  if (state === 'town') { Store.shopOf(2).deliveries = 2; Store.shopOf(3).deliveries = 0; Store.shopOf(4).deliveries = 4; Store.shopOf(7).deliveries = 0; Store.shopOf(8).deliveries = 1; Store.shopOf(9).deliveries = 2; Shop.openTown(); document.body.dataset.ready = '1'; return; }
   const sh = Store.shopOf(dan);
   if (q.get('item')) sh.selected = q.get('item');
   if (state === 'intro') sh.introSeen = false;
@@ -58,7 +58,8 @@
   document.getElementById('shop-animal').innerHTML = Shop.animalSVG(S.animal.id, plates > n ? 'wonder' : 'order');
   document.getElementById('shop-name').textContent = S.animal.name;
   const label = document.querySelector('.food-chip.on .food-chip-name').textContent;
-  document.getElementById('shop-line').textContent = plates > n ? `あれ？ ${n}セットで いいよ` : `${S.animal.hello} ${label}を ${n}セット おねがい！`;
+  const sets = (k) => (Shop.SHOPS.find((s) => s.dan === dan).counter || ((v) => v + 'セット'))(k);
+  document.getElementById('shop-line').textContent = plates > n ? `あれ？ ${sets(n)}で いいよ` : `${S.animal.hello} ${label}を ${sets(n)} おねがい！`;
   if (state !== 'order') {
     document.getElementById('shop-check').click();
     if (state === 'counting') {
@@ -67,6 +68,7 @@
       document.getElementById('shop-skip').click();
     }
     if (state === 'delivered' || state === 'unlock') document.getElementById('shop-deliver').click();
+    if (q.get('close')) document.getElementById('shop-unlock-ok').click();   // 解放のおしらせを とじたあと（NEW・つぎの商品）
   }
   document.querySelectorAll('.plate').forEach((p) => { p.style.animation = 'none'; });
   document.body.dataset.ready = '1';

@@ -567,3 +567,52 @@ table.events td.w, table.events td.h { white-space: normal; }
 /* 3こ・5こ ならべるお店：右上の しょうひんに 数字が かからないよう、少しだけ外へ */
 .plate:has(.dish-3) .plate-badge, .plate:has(.dish-5) .plate-badge { right: -.8em; top: -.9em; }
 .shop-intro-line .nowrap { white-space: nowrap; display: inline-block; }
+
+/* ---------- Phase 2：4・6・7・8・9の段の入れ物 ---------- */
+/* 4 しばいぬ：草のマット */
+.plate-dish.dish-4 { border-radius: 22%; background: radial-gradient(circle at 50% 40%, #e4f5d2, #c3e6a4); border: 5px solid #8cc263; box-shadow: 0 5px 0 #6ea64a; }
+/* 6 ロールケーキ：ピンクのお皿（さいころの6） */
+.plate-dish.dish-6 { border-radius: 16%; background: #fff7fb; border: 5px solid #f2a7c3; box-shadow: inset 0 0 0 4px #fde3ee, 0 5px 0 #d886a6; }
+/* 7 インコ：空と 2本の木の枝（上に4わ・下に3わ） */
+.plate-dish.dish-7 {
+  border-radius: 18%; border: 5px solid #8fc7ec; box-shadow: 0 5px 0 #69a9d6;
+  background:
+    linear-gradient(#a87a4a, #a87a4a) 0 43% / 100% 4px no-repeat,
+    linear-gradient(#a87a4a, #a87a4a) 0 83% / 100% 4px no-repeat,
+    linear-gradient(#eef8ff, #d4ecfb);
+}
+/* 8 たこ：うみ */
+.plate-dish.dish-8 { border-radius: 24%; background: linear-gradient(#dcf2ff, #a6d8f4); border: 5px solid #5fb0e0; box-shadow: 0 5px 0 #3f8fc0; }
+/* 9 クッキー：9つに しきった箱 */
+.plate-dish.dish-9 {
+  border-radius: 12%; border: 5px solid #b07a4f; box-shadow: 0 5px 0 #8a5a33;
+  background-color: #fff6e6;
+  background-image:
+    linear-gradient(90deg, transparent calc(34.5% - 1.5px), #e2c49a calc(34.5% - 1.5px), #e2c49a calc(34.5% + 1.5px), transparent calc(34.5% + 1.5px), transparent calc(65.5% - 1.5px), #e2c49a calc(65.5% - 1.5px), #e2c49a calc(65.5% + 1.5px), transparent calc(65.5% + 1.5px)),
+    linear-gradient(0deg, transparent calc(34.5% - 1.5px), #e2c49a calc(34.5% - 1.5px), #e2c49a calc(34.5% + 1.5px), transparent calc(34.5% + 1.5px), transparent calc(65.5% - 1.5px), #e2c49a calc(65.5% - 1.5px), #e2c49a calc(65.5% + 1.5px), transparent calc(65.5% + 1.5px));
+}
+.plate.lit .plate-dish.dish-4, .plate.lit .plate-dish.dish-6, .plate.lit .plate-dish.dish-7, .plate.lit .plate-dish.dish-8, .plate.lit .plate-dish.dish-9 { border-color: #f0a33a; box-shadow: 0 0 0 5px rgba(246, 198, 78, .65); }
+.plate.empty .plate-dish.dish-4, .plate.empty .plate-dish.dish-6, .plate.empty .plate-dish.dish-7, .plate.empty .plate-dish.dish-8, .plate.empty .plate-dish.dish-9 { background: transparent; border: 3px dashed #d9c6a2; box-shadow: none; }
+.plate:has(.dish-7) .plate-badge, .plate:has(.dish-9) .plate-badge { right: -.8em; top: -.9em; }
+/* しばいぬ・たこ：数えるとき あしを光らせる（あしの本数を数えていると分かるように） */
+.plate.lit .leg .ol { stroke: #ff8a00; stroke-width: 4px; }
+.plate.lit .leg path.ol { stroke-width: 9px; }   /* たこ：太さはそのまま（太くすると あしどうしが くっついて 数えにくい） */
+.plate.lit .leg { animation: leg-pop .45s ease-out; transform-box: fill-box; transform-origin: 50% 0; }
+@keyframes leg-pop { 50% { transform: scaleY(1.12); } }
+@media (prefers-reduced-motion: reduce) { .plate.lit .leg { animation: none; } }
+
+/* 解放したばかりの商品 */
+.food-chip { position: relative; }
+.food-chip.fresh { border-color: #f6c64e; box-shadow: 0 0 0 4px rgba(246, 198, 78, .55); animation: chip-glow 1.4s ease-in-out infinite; }
+@keyframes chip-glow { 50% { box-shadow: 0 0 0 7px rgba(246, 198, 78, .25); } }
+.food-chip-new { position: absolute; top: -9px; right: -6px; background: #e8414f; color: #fff; font-size: .7rem; font-weight: 700; border-radius: 999px; padding: 1px 7px; }
+.shop-unlock-btns { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+.shop-unlock-btns .mid-btn { padding: 12px 20px; font-size: clamp(1.1rem, 3.4vmin, 1.4rem); }
+/* つぎに だす商品 */
+.shop-next-item { display: flex; align-items: center; justify-content: center; gap: 6px; flex-wrap: wrap; font-size: 1rem; color: var(--ink-soft); text-align: center; }
+.shop-next-item b { color: var(--ink); }
+.shop-next-ico { width: 32px; height: 32px; display: inline-block; }
+.shop-next-ico svg { width: 100%; height: 100%; }
+@media (prefers-reduced-motion: reduce) { .food-chip.fresh { animation: none; } }
+/* 「つぎの おきゃくさんを よぶ」：せまい横画面でも パネルから はみ出さない */
+#shop-next { max-width: 100%; white-space: normal; word-break: keep-all; padding-left: 16px; padding-right: 16px; font-size: clamp(1.05rem, min(4vw, 3.2vmin), 1.5rem); }
